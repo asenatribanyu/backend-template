@@ -1,6 +1,6 @@
-import config from "../config/config.js";
 import nodemailer from "nodemailer";
-import logger from "../utils/logger.js";
+import config from "../config/index.js";
+import { compileTemplate } from "./template.service.js";
 
 const transporter = nodemailer.createTransport({
   host: config.mail.host,
@@ -12,16 +12,13 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-export async function sendEmail(to, subject, html) {
-  try {
-    await transporter.sendMail({
-      from: config.mail.user,
-      to,
-      subject,
-      html,
-    });
-    logger.info("Email sent successfully");
-  } catch (error) {
-    logger.error("Failed to send email:", error);
-  }
-}
+export const sendEmail = async ({ to, subject, template, data }) => {
+  const html = compileTemplate(template, data);
+
+  await transporter.sendMail({
+    from: config.mail.from,
+    to,
+    subject,
+    html,
+  });
+};
