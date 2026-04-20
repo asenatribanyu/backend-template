@@ -6,7 +6,11 @@ import { buildAuditLog } from "../services/auditLog.js";
 import { Op } from "sequelize";
 import config from "../config/config.js";
 import { parseUserAgent } from "../utils/parserUserAgent.js";
-import { generateAccessToken, generateRefreshToken, hashToken } from "../services/generateToken.js";
+import {
+  generateAccessToken,
+  generateRefreshToken,
+  hashToken,
+} from "../services/generateToken.js";
 import { emailQueue } from "../queue/emailQueue.js";
 
 const register = async (req, res) => {
@@ -49,7 +53,10 @@ const register = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const newProfile = await Profile.create({ firstName, lastName }, { transaction: t });
+    const newProfile = await Profile.create(
+      { firstName, lastName },
+      { transaction: t },
+    );
 
     const newUser = await User.create(
       {
@@ -157,7 +164,9 @@ const login = async (req, res) => {
     await RefreshToken.create({
       userId: user.id,
       tokenHash: hashedRefreshToken,
-      expiresAt: new Date(Date.now() + config.app.refreshExpireIn * 24 * 60 * 60 * 1000),
+      expiresAt: new Date(
+        Date.now() + config.app.refreshExpireIn * 24 * 60 * 60 * 1000,
+      ),
       deviceInfo: parseUserAgent(req),
       ipAddress: req.ip,
     });
@@ -333,7 +342,9 @@ const refreshToken = async (req, res) => {
       {
         userId: user.id,
         tokenHash: newHashed,
-        expiresAt: new Date(Date.now() + config.app.refreshExpireIn * 24 * 60 * 60 * 1000),
+        expiresAt: new Date(
+          Date.now() + config.app.refreshExpireIn * 24 * 60 * 60 * 1000,
+        ),
         deviceInfo: parseUserAgent(req),
         ipAddress: req.ip,
         replacedByToken: token.id,
@@ -476,7 +487,9 @@ const resetPassword = async (req, res) => {
     const { token, email, password } = req.body;
 
     if (!token || !password) {
-      logger.warn(`Password reset failed - missing token or password for email: ${email}`);
+      logger.warn(
+        `Password reset failed - missing token or password for email: ${email}`,
+      );
       return res.status(400).json({
         meta: {
           code: 400,
