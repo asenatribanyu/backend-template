@@ -7,3 +7,5 @@ logs/
 dist/
 
 .env
+
+src/key

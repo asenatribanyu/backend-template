@@ -1,28 +1,35 @@
-import UAParser from "ua-parser-js";
+import { UAParser } from "ua-parser-js";
 
 export const parseUserAgent = (req) => {
   const parser = new UAParser(req.headers["user-agent"] || "");
+  const ua = parser.getResult();
 
-  const uaResult = parser.getResult();
+  const normalize = (val) => val?.toLowerCase() || null;
 
   return {
     browser: {
-      name: uaResult.browser.name || null,
-      version: uaResult.browser.version || null,
+      name: normalize(ua.browser.name),
+      version: ua.browser.version || null,
     },
     os: {
-      name: uaResult.os.name || null,
-      version: uaResult.os.version || null,
+      name: normalize(ua.os.name),
+      version: ua.os.version || null,
     },
     device: {
-      model: uaResult.device.model || null,
-      type: uaResult.device.type || "desktop", // fallback
-      vendor: uaResult.device.vendor || null,
+      model: ua.device.model || null,
+      type: ua.device.type || "desktop",
+      vendor: ua.device.vendor || null,
     },
     engine: {
-      name: uaResult.engine.name || null,
-      version: uaResult.engine.version || null,
+      name: normalize(ua.engine.name),
+      version: ua.engine.version || null,
     },
+    isMobile: ua.device.type === "mobile",
     raw: req.headers["user-agent"] || null,
+    parsedAt: new Date(),
   };
+};
+
+export const getClientIp = (req) => {
+  return req.headers["x-forwarded-for"]?.split(",")[0] || req.socket.remoteAddress;
 };

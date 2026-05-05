@@ -37,5 +37,5 @@ emailWorker.on("completed", (job) => {
 });
 
 emailWorker.on("failed", (job, err) => {
-  logger.error(`Job ${job?.id} failed:`, err.message);
+  logger.error(`Job ${job?.id} failed:`, err);
 });

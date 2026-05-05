@@ -1,17 +1,14 @@
 import models from "../model/index.js";
-const { db, User, Role, Profile, AuditLog, RefreshToken } = models;
+const { db, User, Role, Profile, AuditLog, RefreshToken, PasswordResetToken } = models;
 import logger from "../utils/logger.js";
 import bcrypt from "bcrypt";
 import { buildAuditLog } from "../services/auditLog.js";
 import { Op } from "sequelize";
 import config from "../config/config.js";
-import { parseUserAgent } from "../utils/parserUserAgent.js";
-import {
-  generateAccessToken,
-  generateRefreshToken,
-  hashToken,
-} from "../services/generateToken.js";
+import { parseUserAgent, getClientIp } from "../utils/parserUserAgent.js";
+import { generateAccessToken, generateRefreshToken, hashToken } from "../services/generateToken.js";
 import { emailQueue } from "../queue/emailQueue.js";
+import crypto from "crypto";
 
 const register = async (req, res) => {
   const t = await db.transaction();
@@ -20,7 +17,7 @@ const register = async (req, res) => {
 
     const existingUser = await User.findOne({
       where: {
-        [Op.or]: [{ username }, { email }],
+        [Op.or]: [{ username: username.toLowerCase() }, { email: email.toLowerCase() }],
       },
     });
 
@@ -53,20 +50,16 @@ const register = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const newProfile = await Profile.create(
-      { firstName, lastName },
-      { transaction: t },
-    );
-
     const newUser = await User.create(
       {
-        username,
-        email,
+        username: username.toLowerCase(),
+        email: email.toLowerCase(),
         password: hashedPassword,
         roleId: userRole.id,
       },
       { transaction: t },
     );
+    const newProfile = await Profile.create({ firstName, lastName, userId: newUser.id }, { transaction: t });
 
     const userData = newUser.toJSON();
     delete userData.password;
@@ -110,11 +103,22 @@ const register = async (req, res) => {
 
 const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { login, password } = req.body;
 
     const user = await User.findOne({
-      where: { email },
-      include: [Profile, Role],
+      where: {
+        [Op.or]: [{ email: login }, { username: login }],
+      },
+      include: [
+        {
+          model: Profile,
+          as: "Profile",
+        },
+        {
+          model: Role,
+          as: "Role",
+        },
+      ],
     });
 
     if (!user) {
@@ -124,7 +128,7 @@ const login = async (req, res) => {
           action: "LOGIN_FAILED",
           entityType: "Auth",
           metadata: {
-            identifier: email,
+            identifier: login,
             reason: "user_not_found",
           },
           req,
@@ -145,7 +149,7 @@ const login = async (req, res) => {
           action: "LOGIN_FAILED",
           entityType: "Auth",
           metadata: {
-            identifier: email,
+            identifier: login,
             reason: "invalid_password",
           },
           req,
@@ -164,11 +168,9 @@ const login = async (req, res) => {
     await RefreshToken.create({
       userId: user.id,
       tokenHash: hashedRefreshToken,
-      expiresAt: new Date(
-        Date.now() + config.app.refreshExpireIn * 24 * 60 * 60 * 1000,
-      ),
+      expiresAt: new Date(Date.now() + config.app.refreshExpireIn * 24 * 60 * 60 * 1000),
       deviceInfo: parseUserAgent(req),
-      ipAddress: req.ip,
+      ipAddress: getClientIp(req),
     });
 
     await AuditLog.create(
@@ -181,14 +183,14 @@ const login = async (req, res) => {
         action: "LOGIN_SUCCESS",
         entityType: "Auth",
         metadata: {
-          identifier: email,
+          identifier: login,
           method: "email",
         },
         req,
       }),
     );
 
-    logger.info(`Login successful for email: ${email}`);
+    logger.info(`Login successful for user: ${login}`);
 
     return res.status(200).json({
       meta: {
@@ -196,14 +198,15 @@ const login = async (req, res) => {
         message: "Login successful",
       },
       data: {
-        accessToken,
-        refreshToken,
         user: {
           id: user.id,
           username: user.username,
           email: user.email,
           role: user.Role.name,
+          profile: user.Profile,
         },
+        accessToken,
+        refreshToken,
       },
     });
   } catch (error) {
@@ -221,13 +224,22 @@ const login = async (req, res) => {
 const logout = async (req, res) => {
   try {
     const userId = req.user.id;
-    const refreshToken = req.body.refreshToken;
+    const { refreshToken } = req.body;
 
     const hashed = await hashToken(refreshToken);
 
-    await RefreshToken.destroy({
-      where: { tokenHash: hashed },
+    const token = await RefreshToken.findOne({
+      where: {
+        tokenHash: hashed,
+        userId,
+      },
     });
+
+    if (token) {
+      await token.update({
+        revokedAt: new Date(),
+      });
+    }
 
     await AuditLog.create(
       buildAuditLog({
@@ -240,8 +252,8 @@ const logout = async (req, res) => {
           type: "USER",
         },
         metadata: {
-          ip: req.ip,
-          userAgent: req.headers["user-agent"],
+          ip: getClientIp(req),
+          device: token?.deviceInfo || null,
         },
         req,
       }),
@@ -254,7 +266,7 @@ const logout = async (req, res) => {
       },
     });
   } catch (error) {
-    logger.error(error);
+    logger.error("Failed to logout : ", error);
 
     return res.status(500).json({
       meta: {
@@ -264,6 +276,7 @@ const logout = async (req, res) => {
     });
   }
 };
+
 const refreshToken = async (req, res) => {
   const t = await db.transaction();
 
@@ -299,7 +312,16 @@ const refreshToken = async (req, res) => {
     }
 
     const user = await User.findByPk(token.userId, {
-      include: [Role],
+      include: [
+        {
+          model: Role,
+          as: "Role",
+        },
+        {
+          model: Profile,
+          as: "Profile",
+        },
+      ],
       transaction: t,
     });
 
@@ -342,11 +364,9 @@ const refreshToken = async (req, res) => {
       {
         userId: user.id,
         tokenHash: newHashed,
-        expiresAt: new Date(
-          Date.now() + config.app.refreshExpireIn * 24 * 60 * 60 * 1000,
-        ),
+        expiresAt: new Date(Date.now() + config.app.refreshExpireIn * 24 * 60 * 60 * 1000),
         deviceInfo: parseUserAgent(req),
-        ipAddress: req.ip,
+        ipAddress: getClientIp(req),
         replacedByToken: token.id,
       },
       { transaction: t },
@@ -363,8 +383,8 @@ const refreshToken = async (req, res) => {
           type: "USER",
         },
         metadata: {
-          ip: req.ip,
-          device: req.headers["user-agent"],
+          ip: getClientIp(req),
+          device: parseUserAgent(req),
         },
         req,
       }),
@@ -379,14 +399,15 @@ const refreshToken = async (req, res) => {
         message: "Refresh token successful",
       },
       data: {
-        accessToken,
-        refreshToken: newRefreshToken,
         user: {
           id: user.id,
           username: user.username,
           email: user.email,
           role: user.Role.name,
+          profile: user.Profile,
         },
+        accessToken,
+        refreshToken,
       },
     });
   } catch (error) {
@@ -443,26 +464,15 @@ const forgotPassword = async (req, res) => {
 
     const resetLink = `${config.app.frontendUrl}/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`;
 
-    await emailQueue.add(
-      "send-reset-password",
-      {
-        to: user.email,
-        subject: "Reset Password",
-        template: "reset-password",
-        data: {
-          resetLink,
-          userName: user.name,
-        },
+    await emailQueue.add("reset-password-email", {
+      to: user.email,
+      subject: "Reset Password",
+      template: "reset-password",
+      data: {
+        resetLink,
+        userName: user.name,
       },
-      {
-        attempts: 3,
-        backoff: {
-          type: "exponential",
-          delay: 5000,
-        },
-        removeOnComplete: true,
-      },
-    );
+    });
 
     return res.status(200).json({
       meta: {
@@ -487,9 +497,7 @@ const resetPassword = async (req, res) => {
     const { token, email, password } = req.body;
 
     if (!token || !password) {
-      logger.warn(
-        `Password reset failed - missing token or password for email: ${email}`,
-      );
+      logger.warn(`Password reset failed - missing token or password for email: ${email}`);
       return res.status(400).json({
         meta: {
           code: 400,

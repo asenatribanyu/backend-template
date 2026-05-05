@@ -8,7 +8,7 @@ export default (sequelize) => {
       id: {
         type: DataTypes.UUID,
         primaryKey: true,
-        defaultValue: uuidv7(),
+        defaultValue: () => uuidv7(),
       },
       tokenHash: {
         type: DataTypes.STRING,
@@ -23,7 +23,7 @@ export default (sequelize) => {
         allowNull: false,
       },
       deviceInfo: {
-        type: DataTypes.STRING,
+        type: DataTypes.JSONB,
         allowNull: false,
       },
       ipAddress: {

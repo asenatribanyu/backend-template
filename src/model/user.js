@@ -56,6 +56,8 @@ export default (sequelize) => {
   User.associate = (models) => {
     User.belongsTo(models.Role, { foreignKey: "roleId" });
     User.hasOne(models.Profile, { foreignKey: "userId" });
+    User.hasMany(models.RefreshToken, { foreignKey: "userId" });
+    User.hasMany(models.AuditLog, { foreignKey: "userId" });
   };
 
   return User;

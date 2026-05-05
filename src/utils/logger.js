@@ -7,20 +7,23 @@ if (!fs.existsSync(logDir)) {
   fs.mkdirSync(logDir);
 }
 
-const { combine, timestamp, printf, colorize, errors } = winston.format;
+const { combine, timestamp, printf, colorize, errors, splat } = winston.format;
 
-const fileFormat = printf(({ level, message, timestamp }) => {
-  return `[${timestamp}] ${level}: ${message}`;
+const fileFormat = printf(({ level, message, timestamp, stack }) => {
+  return stack ? `[${timestamp}] ${level}: ${message}\n${stack}` : `[${timestamp}] ${level}: ${message}`;
 });
 
 const consoleFormat = combine(
   colorize(),
   timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
   errors({ stack: true }),
+  splat(),
   printf(({ level, message, timestamp, stack }) => {
     return stack ? `[${timestamp}] ${level}: ${message}\n${stack}` : `[${timestamp}] ${level}: ${message}`;
   }),
 );
+
+const fileCommonFormat = combine(timestamp({ format: "YYYY-MM-DD HH:mm:ss" }), errors({ stack: true }), splat(), fileFormat);
 
 const combinedTransport = new winston.transports.DailyRotateFile({
   dirname: logDir,
@@ -29,7 +32,7 @@ const combinedTransport = new winston.transports.DailyRotateFile({
   zippedArchive: true,
   maxSize: "20m",
   maxFiles: "12w",
-  format: combine(timestamp({ format: "YYYY-MM-DD HH:mm:ss" }), fileFormat),
+  format: fileCommonFormat,
 });
 
 const errorTransport = new winston.transports.DailyRotateFile({
@@ -40,7 +43,7 @@ const errorTransport = new winston.transports.DailyRotateFile({
   zippedArchive: true,
   maxSize: "20m",
   maxFiles: "12w",
-  format: combine(timestamp({ format: "YYYY-MM-DD HH:mm:ss" }), fileFormat),
+  format: fileCommonFormat,
 });
 
 const logger = winston.createLogger({

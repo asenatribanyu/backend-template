@@ -1,5 +1,5 @@
 import Joi from "joi";
-import { validate } from "./validate.js";
+import { validate } from "./index.js";
 
 export const updateUserSchema = validate(
   Joi.object({

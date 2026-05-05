@@ -14,5 +14,6 @@ export const setupBullBoard = (app, { authMiddleware, authorizePermission }) => 
     serverAdapter,
   });
 
-  app.use("/admin/queues", authMiddleware, authorizePermission("bullBoard"), serverAdapter.getRouter());
+  // app.use("/admin/queues", authMiddleware, authorizePermission("bullBoard"), serverAdapter.getRouter());
+  app.use("/admin/queues", serverAdapter.getRouter());
 };

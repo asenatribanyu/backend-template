@@ -1,5 +1,5 @@
 import Joi from "joi";
-import { validate } from "./validate.js";
+import { validate } from "./index.js";
 
 export const registerSchema = validate(
   Joi.object({
@@ -13,7 +13,7 @@ export const registerSchema = validate(
 
 export const loginSchema = validate(
   Joi.object({
-    email: Joi.string().email().required(),
+    login: Joi.string().required(),
     password: Joi.string().required(),
   }),
 );
