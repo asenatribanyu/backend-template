@@ -22,16 +22,12 @@ export default (sequelize) => {
       },
       email: {
         type: DataTypes.STRING,
-        allowNull: true,
+        allowNull: false,
         unique: true,
       },
       password: {
         type: DataTypes.STRING,
         allowNull: true,
-      },
-      status: {
-        type: DataTypes.ENUM("pending", "active", "suspended", "deleted", "banned"),
-        defaultValue: "pending",
       },
       lastLoginAt: {
         type: DataTypes.DATE,
@@ -40,6 +36,20 @@ export default (sequelize) => {
       roleId: {
         type: DataTypes.UUID,
         allowNull: false,
+      },
+      isVerified: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
+      isVerifiedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
+      isBlocked: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
       },
     },
     {
@@ -57,7 +67,7 @@ export default (sequelize) => {
     User.belongsTo(models.Role, { foreignKey: "roleId" });
     User.hasOne(models.Profile, { foreignKey: "userId" });
     User.hasMany(models.RefreshToken, { foreignKey: "userId" });
-    User.hasMany(models.AuditLog, { foreignKey: "userId" });
+    User.hasMany(models.AuditLog, { foreignKey: "actorId" });
   };
 
   return User;

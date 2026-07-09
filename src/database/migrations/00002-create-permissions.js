@@ -8,18 +8,14 @@ export default {
         primaryKey: true,
         allowNull: false,
       },
-
       name: {
         type: Sequelize.STRING,
         allowNull: false,
-        unique: true,
       },
-
       created_at: {
         allowNull: false,
         type: Sequelize.DATE,
       },
-
       updated_at: {
         allowNull: false,
         type: Sequelize.DATE,
@@ -27,7 +23,7 @@ export default {
     });
   },
 
-  async down(queryInterface, Sequelize) {
+  async down(queryInterface) {
     await queryInterface.dropTable("permissions");
   },
 };

@@ -8,6 +8,8 @@ const db = new Sequelize({
   username: config.db.user,
   password: config.db.password,
   dialect: config.db.dialect,
+  logging: false,
+  minifyAliases: true,
 });
 
 export default db;

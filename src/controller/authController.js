@@ -1,6 +1,7 @@
 import models from "../model/index.js";
 const { db, User, Role, Profile, AuditLog, RefreshToken, PasswordResetToken } = models;
-import logger from "../utils/logger.js";
+import { createLogger } from "../utils/logger.js";
+const logger = createLogger("AuthController");
 import bcrypt from "bcrypt";
 import { buildAuditLog } from "../services/auditLog.js";
 import { Op } from "sequelize";
@@ -22,6 +23,7 @@ const register = async (req, res) => {
     });
 
     if (existingUser) {
+      await t.rollback();
       await AuditLog.create(
         buildAuditLog({
           type: "EVENT",
@@ -34,7 +36,6 @@ const register = async (req, res) => {
           req,
         }),
       );
-      await t.rollback();
       return res.status(400).json({
         meta: { code: 400, message: "Username or email already exists" },
       });
@@ -59,7 +60,7 @@ const register = async (req, res) => {
       },
       { transaction: t },
     );
-    const newProfile = await Profile.create({ firstName, lastName, userId: newUser.id }, { transaction: t });
+    await Profile.create({ firstName, lastName, userId: newUser.id }, { transaction: t });
 
     const userData = newUser.toJSON();
     delete userData.password;
@@ -91,7 +92,7 @@ const register = async (req, res) => {
     });
   } catch (error) {
     await t.rollback();
-    logger.error("Registration failed:", error);
+    logger.error("Registration failed:", { error });
     return res.status(500).json({
       meta: {
         code: 500,
@@ -161,9 +162,47 @@ const login = async (req, res) => {
       });
     }
 
-    const accessToken = await generateAccessToken(user);
-    const refreshToken = await generateRefreshToken();
-    const hashedRefreshToken = await hashToken(refreshToken);
+    if (!user.isVerified) {
+      await AuditLog.create(
+        buildAuditLog({
+          type: "EVENT",
+          action: "LOGIN_FAILED",
+          entityType: "Auth",
+          metadata: {
+            identifier: login,
+            reason: "unverified_account",
+          },
+          req,
+        }),
+      );
+
+      return res.status(403).json({
+        meta: { code: 403, message: "Account is not verified" },
+      });
+    }
+
+    if (user.isBlocked) {
+      await AuditLog.create(
+        buildAuditLog({
+          type: "EVENT",
+          action: "LOGIN_FAILED",
+          entityType: "Auth",
+          metadata: {
+            identifier: login,
+            reason: "account_blocked",
+          },
+          req,
+        }),
+      );
+
+      return res.status(403).json({
+        meta: { code: 403, message: "Account is blocked" },
+      });
+    }
+
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken();
+    const hashedRefreshToken = hashToken(refreshToken);
 
     await RefreshToken.create({
       userId: user.id,
@@ -210,7 +249,7 @@ const login = async (req, res) => {
       },
     });
   } catch (error) {
-    logger.error("Login failed:", error);
+    logger.error("Login failed:", { error });
 
     return res.status(500).json({
       meta: {
@@ -226,7 +265,7 @@ const logout = async (req, res) => {
     const userId = req.user.id;
     const { refreshToken } = req.body;
 
-    const hashed = await hashToken(refreshToken);
+    const hashed = hashToken(refreshToken);
 
     const token = await RefreshToken.findOne({
       where: {
@@ -266,7 +305,7 @@ const logout = async (req, res) => {
       },
     });
   } catch (error) {
-    logger.error("Failed to logout : ", error);
+    logger.error("Failed to logout:", { error });
 
     return res.status(500).json({
       meta: {
@@ -283,14 +322,14 @@ const refreshToken = async (req, res) => {
   try {
     const { refreshToken } = req.body;
 
-    const hashed = await hashToken(refreshToken);
+    const hashed = hashToken(refreshToken);
 
     const token = await RefreshToken.findOne({
       where: { tokenHash: hashed },
       transaction: t,
     });
 
-    if (!token || token.revokedAt) {
+    if (!token || token.revokedAt || token.expiresAt < new Date()) {
       await AuditLog.create(
         buildAuditLog({
           type: "EVENT",
@@ -346,9 +385,9 @@ const refreshToken = async (req, res) => {
       });
     }
 
-    const accessToken = await generateAccessToken(user);
-    const newRefreshToken = await generateRefreshToken();
-    const newHashed = await hashToken(newRefreshToken);
+    const accessToken = generateAccessToken(user);
+    const newRefreshToken = generateRefreshToken();
+    const newHashed = hashToken(newRefreshToken);
 
     await RefreshToken.update(
       {
@@ -360,7 +399,7 @@ const refreshToken = async (req, res) => {
       },
     );
 
-    const newTokenRow = await RefreshToken.create(
+    await RefreshToken.create(
       {
         userId: user.id,
         tokenHash: newHashed,
@@ -407,12 +446,12 @@ const refreshToken = async (req, res) => {
           profile: user.Profile,
         },
         accessToken,
-        refreshToken,
+        refreshToken: newRefreshToken,
       },
     });
   } catch (error) {
     await t.rollback();
-    logger.error("Refresh token failed:", error);
+    logger.error("Refresh token failed:", { error });
 
     return res.status(500).json({
       meta: { code: 500, message: "Internal Server Error" },
@@ -437,7 +476,11 @@ const forgotPassword = async (req, res) => {
 
     const resetToken = crypto.randomBytes(32).toString("hex");
 
-    const hashedToken = await hashToken(resetToken);
+    const hashedToken = hashToken(resetToken);
+
+    await PasswordResetToken.destroy({
+      where: { userId: user.id },
+    });
 
     await PasswordResetToken.create({
       userId: user.id,
@@ -470,7 +513,7 @@ const forgotPassword = async (req, res) => {
       template: "reset-password",
       data: {
         resetLink,
-        userName: user.name,
+        userName: user.username,
       },
     });
 
@@ -481,7 +524,7 @@ const forgotPassword = async (req, res) => {
       },
     });
   } catch (error) {
-    logger.error("Forgot password failed:", error);
+    logger.error("Forgot password failed:", { error });
 
     return res.status(500).json({
       meta: {
@@ -518,7 +561,7 @@ const resetPassword = async (req, res) => {
       });
     }
 
-    const hashedToken = await hashToken(token);
+    const hashedToken = hashToken(token);
 
     const resetToken = await PasswordResetToken.findOne({
       where: {
@@ -538,6 +581,7 @@ const resetPassword = async (req, res) => {
     }
 
     if (resetToken.expiresAt < new Date()) {
+      await resetToken.destroy();
       return res.status(400).json({
         meta: {
           code: 400,
@@ -577,7 +621,7 @@ const resetPassword = async (req, res) => {
       },
     });
   } catch (error) {
-    logger.error("Reset password failed:", error);
+    logger.error("Reset password failed:", { error });
 
     return res.status(500).json({
       meta: {

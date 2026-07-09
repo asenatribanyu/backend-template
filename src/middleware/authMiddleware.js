@@ -1,9 +1,10 @@
 import jwt from "jsonwebtoken";
 import models from "../model/index.js";
 import config from "../config/config.js";
-import logger from "../utils/logger.js";
+import { createLogger } from "../utils/logger.js";
+const logger = createLogger("AuthMiddleware");
 
-const { User, Role } = models;
+const { User, Role, Permission } = models;
 
 export const authMiddleware = async (req, res, next) => {
   try {
@@ -30,7 +31,7 @@ export const authMiddleware = async (req, res, next) => {
       decoded = jwt.verify(token, config.app.jwt);
     } catch (err) {
       logger.warn("Invalid/expired token", {
-        error: err.message,
+        error: err,
         ip: req.ip,
         path: req.originalUrl,
       });
@@ -47,7 +48,15 @@ export const authMiddleware = async (req, res, next) => {
       include: [
         {
           model: Role,
-          include: ["Permissions"],
+          include: [
+            {
+              model: Permission,
+              attributes: ["name"],
+              through: {
+                attributes: [],
+              },
+            },
+          ],
         },
       ],
     });
@@ -72,12 +81,13 @@ export const authMiddleware = async (req, res, next) => {
       email: user.email,
       username: user.username,
       role: user.Role?.name,
+      scope: user.Role?.scope,
       permissions,
     };
 
     next();
   } catch (error) {
-    logger.error("Auth middleware error", error);
+    logger.error("Auth middleware error", { error });
 
     return res.status(500).json({
       meta: {

@@ -14,6 +14,9 @@ export const updateUserSchema = validate(
       dateOfBirth: Joi.date(),
       gender: Joi.string().valid("male", "female"),
       address: Joi.string(),
+      position: Joi.string(),
+      occupation: Joi.string(),
+      bio: Joi.string(),
     }),
   }),
 );

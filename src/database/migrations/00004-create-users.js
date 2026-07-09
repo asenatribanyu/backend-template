@@ -8,41 +8,29 @@ export default {
         primaryKey: true,
         allowNull: false,
       },
-
       username: {
         type: Sequelize.STRING,
         allowNull: false,
         unique: true,
       },
-
       phone: {
         type: Sequelize.STRING,
         allowNull: true,
         unique: true,
       },
-
       email: {
         type: Sequelize.STRING,
-        allowNull: true,
+        allowNull: false,
         unique: true,
       },
-
       password: {
         type: Sequelize.STRING,
         allowNull: true,
       },
-
-      status: {
-        type: Sequelize.ENUM("pending", "active", "suspended", "deleted", "banned"),
-        allowNull: false,
-        defaultValue: "pending",
-      },
-
       last_login_at: {
         type: Sequelize.DATE,
         allowNull: true,
       },
-
       role_id: {
         type: Sequelize.UUID,
         allowNull: false,
@@ -53,21 +41,34 @@ export default {
         onUpdate: "CASCADE",
         onDelete: "RESTRICT",
       },
-
+      is_verified: {
+        type: Sequelize.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
+      is_verified_at: {
+        type: Sequelize.DATE,
+        allowNull: true,
+      },
+      is_blocked: {
+        type: Sequelize.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
       created_at: {
         allowNull: false,
         type: Sequelize.DATE,
       },
-
       updated_at: {
         allowNull: false,
         type: Sequelize.DATE,
       },
     });
+
+    await queryInterface.addIndex("users", ["role_id"]);
   },
 
-  async down(queryInterface, Sequelize) {
+  async down(queryInterface) {
     await queryInterface.dropTable("users");
-    await queryInterface.sequelize.query('DROP TYPE IF EXISTS "enum_users_status";');
   },
 };

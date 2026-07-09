@@ -1,4 +1,5 @@
-import logger from "../utils/logger.js";
+import { createLogger } from "../utils/logger.js";
+const logger = createLogger("PermissionMiddleware");
 
 export const authorizePermission = (requiredPermission) => {
   return (req, res, next) => {

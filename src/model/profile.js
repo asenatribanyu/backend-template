@@ -22,6 +22,10 @@ export default (sequelize) => {
         type: DataTypes.UUID,
         allowNull: false,
       },
+      position: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
       avatarUrl: {
         type: DataTypes.STRING,
         allowNull: true,
@@ -36,6 +40,14 @@ export default (sequelize) => {
       },
       address: {
         type: DataTypes.STRING,
+        allowNull: true,
+      },
+      occupation: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      bio: {
+        type: DataTypes.TEXT,
         allowNull: true,
       },
     },

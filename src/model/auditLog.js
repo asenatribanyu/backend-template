@@ -10,6 +10,10 @@ export default (sequelize) => {
         primaryKey: true,
         defaultValue: () => uuidv7(),
       },
+      type: {
+        type: DataTypes.ENUM("CREATE", "UPDATE", "DELETE", "EVENT"),
+        allowNull: false,
+      },
       actorId: {
         type: DataTypes.UUID,
         allowNull: true,
@@ -30,15 +34,15 @@ export default (sequelize) => {
         type: DataTypes.UUID,
         allowNull: true,
       },
-      beforeChange: {
+      beforeData: {
         type: DataTypes.JSONB,
         allowNull: true,
       },
-      afterChange: {
+      afterData: {
         type: DataTypes.JSONB,
         allowNull: true,
       },
-      changeFields: {
+      changedFields: {
         type: DataTypes.ARRAY(DataTypes.STRING),
         allowNull: true,
       },

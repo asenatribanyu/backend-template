@@ -1,14 +1,29 @@
 import models from "../model/index.js";
-const { User, Role, AuditLog, Profile } = models;
-import logger from "../utils/logger.js";
+const { db, User, Role, AuditLog, Profile } = models;
+import { createLogger } from "../utils/logger.js";
+const logger = createLogger("UserController");
 import bcrypt from "bcrypt";
 import { buildAuditLog } from "../services/auditLog.js";
+import path from "path";
+import fs from "fs";
 
 const show = async (req, res) => {
   try {
     const userId = req.user.id;
     const user = await User.findOne({
       where: { id: userId },
+      include: [
+        {
+          model: Profile,
+          as: "Profile",
+        },
+        {
+          model: Role,
+          as: "Role",
+          attributes: ["name", "scope"],
+        },
+      ],
+      attributes: { exclude: ["password"] },
     });
     if (!user) {
       return res.status(404).json({
@@ -26,15 +41,15 @@ const show = async (req, res) => {
       data: user,
     });
   } catch (error) {
-    logger.error("Failed to show user", error);
+    logger.error("Failed to show user", { error });
     return res
       .status(500)
-      .json({ meta: { code: 500, message: "Internal Server Errorr" } });
+      .json({ meta: { code: 500, message: "Internal Server Error" } });
   }
 };
 
 const update = async (req, res) => {
-  const t = await sequelize.transaction();
+  const t = await db.transaction();
 
   try {
     const userId = req.user.id;
@@ -47,7 +62,7 @@ const update = async (req, res) => {
     });
 
     if (!user) {
-      await t.rollback();
+      if (!t.finished) await t.rollback();
       return res.status(404).json({
         meta: { code: 404, message: "User not found" },
       });
@@ -83,10 +98,9 @@ const update = async (req, res) => {
       }
     }
 
-    await t.commit();
-
     const after = await User.findByPk(userId, {
       include: "Profile",
+      transaction: t,
     });
 
     const auditLog = buildAuditLog({
@@ -103,16 +117,18 @@ const update = async (req, res) => {
       req,
     });
 
-    await AuditLog.create(auditLog);
+    await AuditLog.create(auditLog, { transaction: t });
+
+    await t.commit();
 
     return res.status(200).json({
       meta: { code: 200, message: "Updated successfully" },
       data: after,
     });
   } catch (error) {
-    await t.rollback();
+    if (!t.finished) await t.rollback();
 
-    logger.error("Failed to update user", error);
+    logger.error("Failed to update user", { error });
 
     return res.status(500).json({
       meta: { code: 500, message: "Internal Server Error" },
@@ -130,7 +146,7 @@ const updateAvatar = async (req, res) => {
       });
     }
 
-    const avatarUrl = `storage/upload/${req.file.filename}`;
+    const avatarUrl = `storage/avatar/${req.file.filename}`;
 
     let profile = await Profile.findOne({ where: { userId } });
 
@@ -149,11 +165,11 @@ const updateAvatar = async (req, res) => {
     }
 
     if (oldAvatarUrl) {
-      const oldPath = path.join("storage/upload", path.basename(oldAvatarUrl));
+      const oldPath = path.join("storage/avatar", path.basename(oldAvatarUrl));
 
       fs.unlink(oldPath, (err) => {
         if (err) {
-          logger.warn("Failed to delete old avatar", err);
+          logger.warn("Failed to delete old avatar", { error: err });
         }
       });
     }
@@ -185,11 +201,11 @@ const updateAvatar = async (req, res) => {
     return res.status(200).json({
       meta: { code: 200, message: "Avatar updated successfully" },
       data: {
-        avatarUrl,
+        avatarUrl: `${req.protocol}://${req.get("host")}/${avatarUrl}`,
       },
     });
   } catch (error) {
-    logger.error("Failed to upload avatar", error);
+    logger.error("Failed to upload avatar", { error });
 
     return res.status(500).json({
       meta: { code: 500, message: "Internal Server Error" },

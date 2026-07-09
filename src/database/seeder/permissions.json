@@ -1,0 +1,21 @@
+{
+  "permissions": [
+    { "name": "admin.user.show" },
+    { "name": "admin.user.create" },
+    { "name": "admin.user.update" },
+    { "name": "admin.user.delete" },
+    { "name": "role.show" },
+    { "name": "role.create" },
+    { "name": "role.update" },
+    { "name": "role.delete" },
+    { "name": "permission.show" },
+    { "name": "permission.create" },
+    { "name": "permission.update" },
+    { "name": "permission.delete" },
+    { "name": "me.show" },
+    { "name": "me.update" },
+    { "name": "me.update.avatar" },
+    { "name": "audit.show" },
+    { "name": "bullBoard.access" }
+  ]
+}

@@ -5,6 +5,7 @@ export default {
     await queryInterface.createTable("role_permissions", {
       role_id: {
         type: Sequelize.UUID,
+        primaryKey: true,
         allowNull: false,
         references: {
           model: "roles",
@@ -13,9 +14,9 @@ export default {
         onUpdate: "CASCADE",
         onDelete: "CASCADE",
       },
-
       permission_id: {
         type: Sequelize.UUID,
+        primaryKey: true,
         allowNull: false,
         references: {
           model: "permissions",
@@ -24,25 +25,21 @@ export default {
         onUpdate: "CASCADE",
         onDelete: "CASCADE",
       },
-
       created_at: {
         allowNull: false,
         type: Sequelize.DATE,
       },
-
       updated_at: {
         allowNull: false,
         type: Sequelize.DATE,
       },
     });
-    await queryInterface.addConstraint("role_permissions", {
-      fields: ["role_id", "permission_id"],
-      type: "unique",
-      name: "unique_role_permission",
-    });
+
+    await queryInterface.addIndex("role_permissions", ["role_id"]);
+    await queryInterface.addIndex("role_permissions", ["permission_id"]);
   },
 
-  async down(queryInterface, Sequelize) {
+  async down(queryInterface) {
     await queryInterface.dropTable("role_permissions");
   },
 };

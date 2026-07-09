@@ -9,4 +9,5 @@ export default {
   expireIn: process.env.JWT_EXPIRE_IN,
   refreshExpireIn: process.env.REFRESH_TOKEN_EXPIRE_IN,
   frontendUrl: process.env.FRONTEND_URL,
+  cors: process.env.CORS ? process.env.CORS.split(",") : [],
 };

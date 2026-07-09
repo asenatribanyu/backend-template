@@ -2,17 +2,20 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath, pathToFileURL } from "url";
 import db from "../database/database.js";
+import { createLogger } from "../utils/logger.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const models = {};
 
+const logger = createLogger("Models");
+
 const files = fs.readdirSync(__dirname).filter((file) => file !== "index.js" && file.endsWith(".js"));
 
 for (const file of files) {
   try {
-    console.log(`📦 Loading model: ${file}`);
+    logger.info(`Loading model: ${file}`);
 
     const modulePath = path.join(__dirname, file);
     const modelModule = await import(pathToFileURL(modulePath));
@@ -33,10 +36,9 @@ for (const file of files) {
 
     models[model.name] = model;
 
-    console.log(`✔ Loaded: ${model.name}`);
+    logger.info(`Loaded: ${model.name}`);
   } catch (err) {
-    console.error(`❌ ERROR IN FILE: ${file}`);
-    console.error(err);
+    logger.error(`ERROR IN FILE: ${file}`, { error: err });
     process.exit(1);
   }
 }

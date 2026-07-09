@@ -1,5 +1,5 @@
-import models from "../model/index.js";
-import logger from "../utils/logger.js";
+import { createLogger } from "../utils/logger.js";
+const logger = createLogger("AuditLog");
 
 const IGNORE_FIELDS = ["password", "updatedAt", "createdAt"];
 
@@ -126,7 +126,7 @@ function buildAuditLog({
       beforeData,
       afterData,
 
-      metadata: type === "EVENT" ? metadata : null,
+      metadata,
 
       message,
 
@@ -134,7 +134,7 @@ function buildAuditLog({
       userAgent: req?.headers?.["user-agent"] || null,
     };
   } catch (error) {
-    logger.error("Error building audit log entry:", error);
+    logger.error("Error building audit log entry:", { error: error });
     throw error;
   }
 }

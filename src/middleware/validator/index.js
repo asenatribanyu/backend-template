@@ -1,4 +1,5 @@
-import logger from "../../utils/logger.js";
+import { createLogger } from "../../utils/logger.js";
+const logger = createLogger("Validator");
 
 export const validate = (schema) => {
   return (req, res, next) => {
@@ -11,14 +12,13 @@ export const validate = (schema) => {
     if (error) {
       const formattedErrors = error.details.map((err) => ({
         field: err.path.join("."),
-        message: err.message,
+        message: err.message.replace(/"/g, ""),
       }));
 
       logger.warn("Validation error", {
         path: req.originalUrl,
         method: req.method,
         ip: req.ip,
-        body: req.body,
         errors: formattedErrors,
       });
 

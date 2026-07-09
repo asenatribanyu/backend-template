@@ -2,10 +2,9 @@
 node_modules/
 
 storage/
-public/
 logs/
 dist/
 
 .env
 
-src/key
+!.env.example

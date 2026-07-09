@@ -11,7 +11,7 @@ const transporter = nodemailer.createTransport({
     pass: config.mail.password,
   },
 });
-console.log("transporter : ", transporter);
+
 export const sendEmail = async ({ to, subject, template, data }) => {
   const html = compileTemplate(template, data);
 

@@ -14,6 +14,11 @@ export default (sequelize) => {
         type: DataTypes.STRING,
         allowNull: false,
       },
+      scope: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        defaultValue: "own",
+      },
     },
     {
       tableName: "roles",
@@ -23,7 +28,7 @@ export default (sequelize) => {
   );
 
   Role.associate = (models) => {
-    Role.hasMany(models.User, { foreignKey: "roleId" });
+    Role.hasMany(models.User, { foreignKey: "roleId", onDelete: "RESTRICT" });
     Role.belongsToMany(models.Permission, {
       through: models.RolePermission,
       foreignKey: "roleId",

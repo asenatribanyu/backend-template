@@ -1,7 +1,8 @@
 import { Worker } from "bullmq";
 import { redis } from "../libs/redis.js";
 import { sendEmail } from "../services/mailer.js";
-import logger from "../utils/logger.js";
+import { createLogger } from "../utils/logger.js";
+const logger = createLogger("EmailWorker");
 
 logger.info("Email worker started...");
 
@@ -22,7 +23,7 @@ export const emailWorker = new Worker(
 
       logger.info(`Email sent to ${to}`);
     } catch (err) {
-      logger.error(`Failed email job ${job.id}`, err);
+      logger.error(`Failed email job ${job.id}`, { error: err });
       throw err;
     }
   },
@@ -37,5 +38,5 @@ emailWorker.on("completed", (job) => {
 });
 
 emailWorker.on("failed", (job, err) => {
-  logger.error(`Job ${job?.id} failed:`, err);
+  logger.error(`Job ${job?.id} failed:`, { error: err });
 });

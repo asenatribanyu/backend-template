@@ -26,6 +26,7 @@ export default (sequelize) => {
     {
       tableName: "password_reset_tokens",
       timestamps: true,
+      underscored: true,
     },
   );
   return PasswordResetToken;

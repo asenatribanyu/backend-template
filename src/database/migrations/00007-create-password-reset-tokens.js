@@ -2,22 +2,19 @@
 
 export default {
   async up(queryInterface, Sequelize) {
-    await queryInterface.createTable("profiles", {
+    await queryInterface.createTable("password_reset_tokens", {
       id: {
         type: Sequelize.UUID,
         primaryKey: true,
         allowNull: false,
       },
-
-      name: {
+      token_hash: {
         type: Sequelize.STRING,
         allowNull: false,
       },
-
       user_id: {
         type: Sequelize.UUID,
         allowNull: false,
-        unique: true,
         references: {
           model: "users",
           key: "id",
@@ -25,41 +22,25 @@ export default {
         onUpdate: "CASCADE",
         onDelete: "CASCADE",
       },
-
-      avatar_url: {
-        type: Sequelize.STRING,
-        allowNull: true,
+      expires_at: {
+        type: Sequelize.DATE,
+        allowNull: false,
       },
-
-      date_of_birth: {
-        type: Sequelize.DATEONLY,
-        allowNull: true,
-      },
-
-      gender: {
-        type: Sequelize.ENUM("male", "female"),
-        allowNull: true,
-      },
-
-      address: {
-        type: Sequelize.STRING,
-        allowNull: true,
-      },
-
       created_at: {
         allowNull: false,
         type: Sequelize.DATE,
       },
-
       updated_at: {
         allowNull: false,
         type: Sequelize.DATE,
       },
     });
+
+    await queryInterface.addIndex("password_reset_tokens", ["user_id"]);
+    await queryInterface.addIndex("password_reset_tokens", ["token_hash"]);
   },
 
-  async down(queryInterface, Sequelize) {
-    await queryInterface.dropTable("profiles");
-    await queryInterface.sequelize.query('DROP TYPE IF EXISTS "enum_profiles_gender";');
+  async down(queryInterface) {
+    await queryInterface.dropTable("password_reset_tokens");
   },
 };
