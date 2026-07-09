@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import models from "../model/index.js";
 import config from "../config/config.js";
 import { createLogger } from "../utils/logger.js";
+import { sendError } from "../utils/response.js";
 const logger = createLogger("AuthMiddleware");
 
 const { User, Role, Permission } = models;
@@ -16,12 +17,7 @@ export const authMiddleware = async (req, res, next) => {
         ip: req.ip,
       });
 
-      return res.status(401).json({
-        meta: {
-          code: 401,
-          message: "Unauthorized",
-        },
-      });
+      return sendError(res, "Unauthorized", 401);
     }
 
     const token = authHeader.split(" ")[1];
@@ -36,12 +32,7 @@ export const authMiddleware = async (req, res, next) => {
         path: req.originalUrl,
       });
 
-      return res.status(401).json({
-        meta: {
-          code: 401,
-          message: "Invalid or expired token",
-        },
-      });
+      return sendError(res, "Invalid or expired token", 401);
     }
 
     const user = await User.findByPk(decoded.id, {
@@ -66,12 +57,7 @@ export const authMiddleware = async (req, res, next) => {
         userId: decoded.id,
       });
 
-      return res.status(401).json({
-        meta: {
-          code: 401,
-          message: "Unauthorized",
-        },
-      });
+      return sendError(res, "Unauthorized", 401);
     }
 
     const permissions = user.Role?.Permissions?.map((p) => p.name) || [];
@@ -89,11 +75,6 @@ export const authMiddleware = async (req, res, next) => {
   } catch (error) {
     logger.error("Auth middleware error", { error });
 
-    return res.status(500).json({
-      meta: {
-        code: 500,
-        message: "Internal Server Error",
-      },
-    });
+    return sendError(res, "Internal Server Error", 500, error);
   }
 };

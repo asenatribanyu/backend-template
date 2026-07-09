@@ -10,6 +10,7 @@ import { parseUserAgent, getClientIp } from "../utils/parserUserAgent.js";
 import { generateAccessToken, generateRefreshToken, hashToken } from "../services/generateToken.js";
 import { emailQueue } from "../queue/emailQueue.js";
 import crypto from "crypto";
+import { sendSuccess, sendError } from "../utils/response.js";
 
 const register = async (req, res) => {
   const t = await db.transaction();
@@ -36,17 +37,13 @@ const register = async (req, res) => {
           req,
         }),
       );
-      return res.status(400).json({
-        meta: { code: 400, message: "Username or email already exists" },
-      });
+      return sendError(res, "Username or email already exists", 400);
     }
 
     const userRole = await Role.findOne({ where: { name: "user" } });
     if (!userRole) {
       await t.rollback();
-      return res.status(404).json({
-        meta: { code: 404, message: "User role not found" },
-      });
+      return sendError(res, "User role not found", 404);
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -84,21 +81,11 @@ const register = async (req, res) => {
     await AuditLog.create(auditLog, { transaction: t });
     await t.commit();
 
-    return res.status(201).json({
-      meta: {
-        code: 201,
-        message: "User registered successfully",
-      },
-    });
+    return sendSuccess(res, null, "User registered successfully", 201);
   } catch (error) {
     await t.rollback();
     logger.error("Registration failed:", { error });
-    return res.status(500).json({
-      meta: {
-        code: 500,
-        message: "Internal Server Error",
-      },
-    });
+    return sendError(res, "Internal Server Error", 500, error);
   }
 };
 
@@ -136,9 +123,7 @@ const login = async (req, res) => {
         }),
       );
 
-      return res.status(401).json({
-        meta: { code: 401, message: "Invalid email or password" },
-      });
+      return sendError(res, "Invalid email or password", 401);
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -157,9 +142,7 @@ const login = async (req, res) => {
         }),
       );
 
-      return res.status(401).json({
-        meta: { code: 401, message: "Invalid email or password" },
-      });
+      return sendError(res, "Invalid email or password", 401);
     }
 
     if (!user.isVerified) {
@@ -176,9 +159,7 @@ const login = async (req, res) => {
         }),
       );
 
-      return res.status(403).json({
-        meta: { code: 403, message: "Account is not verified" },
-      });
+      return sendError(res, "Account is not verified", 403);
     }
 
     if (user.isBlocked) {
@@ -195,9 +176,7 @@ const login = async (req, res) => {
         }),
       );
 
-      return res.status(403).json({
-        meta: { code: 403, message: "Account is blocked" },
-      });
+      return sendError(res, "Account is blocked", 403);
     }
 
     const accessToken = generateAccessToken(user);
@@ -231,12 +210,9 @@ const login = async (req, res) => {
 
     logger.info(`Login successful for user: ${login}`);
 
-    return res.status(200).json({
-      meta: {
-        code: 200,
-        message: "Login successful",
-      },
-      data: {
+    return sendSuccess(
+      res,
+      {
         user: {
           id: user.id,
           username: user.username,
@@ -247,16 +223,13 @@ const login = async (req, res) => {
         accessToken,
         refreshToken,
       },
-    });
+      "Login successful",
+      200,
+    );
   } catch (error) {
     logger.error("Login failed:", { error });
 
-    return res.status(500).json({
-      meta: {
-        code: 500,
-        message: "Internal Server Error",
-      },
-    });
+    return sendError(res, "Internal Server Error", 500, error);
   }
 };
 
@@ -298,12 +271,7 @@ const logout = async (req, res) => {
       }),
     );
 
-    return res.json({
-      meta: {
-        code: 200,
-        message: "Logout successful",
-      },
-    });
+    return sendSuccess(res, null, "Logout successful", 200);
   } catch (error) {
     logger.error("Failed to logout:", { error });
 
@@ -432,12 +400,9 @@ const refreshToken = async (req, res) => {
 
     await t.commit();
 
-    return res.status(200).json({
-      meta: {
-        code: 200,
-        message: "Refresh token successful",
-      },
-      data: {
+    return sendSuccess(
+      res,
+      {
         user: {
           id: user.id,
           username: user.username,
@@ -448,14 +413,14 @@ const refreshToken = async (req, res) => {
         accessToken,
         refreshToken: newRefreshToken,
       },
-    });
+      "Refresh token successful",
+      200,
+    );
   } catch (error) {
     await t.rollback();
     logger.error("Refresh token failed:", { error });
 
-    return res.status(500).json({
-      meta: { code: 500, message: "Internal Server Error" },
-    });
+    return sendError(res, "Internal Server Error", 500, error);
   }
 };
 
@@ -466,12 +431,7 @@ const forgotPassword = async (req, res) => {
     const user = await User.findOne({ where: { email } });
 
     if (!user) {
-      return res.status(200).json({
-        meta: {
-          code: 200,
-          message: "If email exists, reset link has been sent",
-        },
-      });
+      return sendSuccess(res, null, "If email exists, reset link has been sent", 200);
     }
 
     const resetToken = crypto.randomBytes(32).toString("hex");
@@ -517,21 +477,11 @@ const forgotPassword = async (req, res) => {
       },
     });
 
-    return res.status(200).json({
-      meta: {
-        code: 200,
-        message: "If email exists, reset link has been sent",
-      },
-    });
+    return sendSuccess(res, null, "If email exists, reset link has been sent", 200);
   } catch (error) {
     logger.error("Forgot password failed:", { error });
 
-    return res.status(500).json({
-      meta: {
-        code: 500,
-        message: "Internal Server Error",
-      },
-    });
+    return sendError(res, "Internal Server Error", 500, error);
   }
 };
 
@@ -541,24 +491,14 @@ const resetPassword = async (req, res) => {
 
     if (!token || !password) {
       logger.warn(`Password reset failed - missing token or password for email: ${email}`);
-      return res.status(400).json({
-        meta: {
-          code: 400,
-          message: "Token and password are required",
-        },
-      });
+      return sendError(res, "Token and password are required", 400);
     }
 
     const user = await User.findOne({ where: { email } });
 
     if (!user) {
       logger.warn(`Password reset failed - user not found for email: ${email}`);
-      return res.status(400).json({
-        meta: {
-          code: 400,
-          message: "Invalid token or expired",
-        },
-      });
+      return sendError(res, "Invalid token or expired", 400);
     }
 
     const hashedToken = hashToken(token);
@@ -572,22 +512,12 @@ const resetPassword = async (req, res) => {
 
     if (!resetToken) {
       logger.warn(`Password reset failed - invalid token for email: ${email}`);
-      return res.status(400).json({
-        meta: {
-          code: 400,
-          message: "Invalid token or expired",
-        },
-      });
+      return sendError(res, "Invalid token or expired", 400);
     }
 
     if (resetToken.expiresAt < new Date()) {
       await resetToken.destroy();
-      return res.status(400).json({
-        meta: {
-          code: 400,
-          message: "Token expired",
-        },
-      });
+      return sendError(res, "Token expired", 400);
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -614,21 +544,11 @@ const resetPassword = async (req, res) => {
     );
     await resetToken.destroy();
 
-    return res.status(200).json({
-      meta: {
-        code: 200,
-        message: "Password has been reset successfully",
-      },
-    });
+    return sendSuccess(res, null, "Password has been reset successfully", 200);
   } catch (error) {
     logger.error("Reset password failed:", { error });
 
-    return res.status(500).json({
-      meta: {
-        code: 500,
-        message: "Internal Server Error",
-      },
-    });
+    return sendError(res, "Internal Server Error", 500, error);
   }
 };
 

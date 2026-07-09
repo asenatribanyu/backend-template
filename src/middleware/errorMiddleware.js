@@ -1,4 +1,5 @@
 import { createLogger } from "../utils/logger.js";
+import { sendError } from "../utils/response.js";
 const logger = createLogger("ErrorHandler");
 
 export const errorHandler = (err, req, res, next) => {
@@ -8,29 +9,13 @@ export const errorHandler = (err, req, res, next) => {
   const message = err.message || "Internal Server Error";
 
   if (err.name === "SequelizeValidationError" || err.name === "SequelizeUniqueConstraintError") {
-    return res.status(400).json({
-      meta: {
-        code: 400,
-        message: "Validation Error",
-      },
-      data: err.errors?.map((e) => ({ field: e.path, message: e.message })) || [],
-    });
+    const errors = err.errors?.map((e) => ({ field: e.path, message: e.message })) || [];
+    return sendError(res, "Validation Error", 400, null, errors);
   }
 
   if (err.name === "MulterError") {
-    return res.status(400).json({
-      meta: {
-        code: 400,
-        message: `Upload Error: ${err.message}`,
-      },
-    });
+    return sendError(res, `Upload Error: ${err.message}`, 400);
   }
 
-  res.status(statusCode).json({
-    meta: {
-      code: statusCode,
-      message,
-    },
-    ...(process.env.NODE_ENV === "DEVELOPMENT" && { stack: err.stack }),
-  });
+  return sendError(res, message, statusCode, err);
 };

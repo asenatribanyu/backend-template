@@ -18,6 +18,7 @@ import { globalLimiter } from "./middleware/rateLimitMiddleware.js";
 import { errorHandler } from "./middleware/errorMiddleware.js";
 import { morganMiddleware } from "./middleware/morganMiddleware.js";
 import { redis } from "./libs/redis.js";
+import { sendError } from "./utils/response.js";
 
 const mode = config.app.env;
 
@@ -57,12 +58,7 @@ app.use(errorHandler);
 
 app.use((req, res) => {
   logger.warn(`404 Not Found: ${req.originalUrl}`);
-  return res.status(404).json({
-    meta: {
-      code: 404,
-      message: "Not Found: The requested endpoint does not exist",
-    },
-  });
+  return sendError(res, "Not Found: The requested endpoint does not exist", 404);
 });
 
 const startServer = async () => {

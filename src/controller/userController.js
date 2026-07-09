@@ -6,6 +6,7 @@ import bcrypt from "bcrypt";
 import { buildAuditLog } from "../services/auditLog.js";
 import path from "path";
 import fs from "fs";
+import { sendSuccess, sendError } from "../utils/response.js";
 
 const show = async (req, res) => {
   try {
@@ -26,25 +27,12 @@ const show = async (req, res) => {
       attributes: { exclude: ["password"] },
     });
     if (!user) {
-      return res.status(404).json({
-        meta: {
-          code: 404,
-          message: "User not found",
-        },
-      });
+      return sendError(res, "User not found", 404);
     }
-    return res.status(200).json({
-      meta: {
-        code: 200,
-        message: "User found",
-      },
-      data: user,
-    });
+    return sendSuccess(res, user, "User found", 200);
   } catch (error) {
     logger.error("Failed to show user", { error });
-    return res
-      .status(500)
-      .json({ meta: { code: 500, message: "Internal Server Error" } });
+    return sendError(res, "Internal Server Error", 500, error);
   }
 };
 
@@ -63,9 +51,7 @@ const update = async (req, res) => {
 
     if (!user) {
       if (!t.finished) await t.rollback();
-      return res.status(404).json({
-        meta: { code: 404, message: "User not found" },
-      });
+      return sendError(res, "User not found", 404);
     }
 
     const before = user.toJSON();
@@ -121,18 +107,13 @@ const update = async (req, res) => {
 
     await t.commit();
 
-    return res.status(200).json({
-      meta: { code: 200, message: "Updated successfully" },
-      data: after,
-    });
+    return sendSuccess(res, after, "Updated successfully", 200);
   } catch (error) {
     if (!t.finished) await t.rollback();
 
     logger.error("Failed to update user", { error });
 
-    return res.status(500).json({
-      meta: { code: 500, message: "Internal Server Error" },
-    });
+    return sendError(res, "Internal Server Error", 500, error);
   }
 };
 
@@ -141,9 +122,7 @@ const updateAvatar = async (req, res) => {
     const userId = req.user.id;
 
     if (!req.file) {
-      return res.status(400).json({
-        meta: { code: 400, message: "Avatar file is required" },
-      });
+      return sendError(res, "Avatar file is required", 400);
     }
 
     const avatarUrl = `storage/avatar/${req.file.filename}`;
@@ -198,18 +177,16 @@ const updateAvatar = async (req, res) => {
 
     await AuditLog.create(auditLog);
 
-    return res.status(200).json({
-      meta: { code: 200, message: "Avatar updated successfully" },
-      data: {
-        avatarUrl: `${req.protocol}://${req.get("host")}/${avatarUrl}`,
-      },
-    });
+    return sendSuccess(
+      res,
+      { avatarUrl: `${req.protocol}://${req.get("host")}/${avatarUrl}` },
+      "Avatar updated successfully",
+      200,
+    );
   } catch (error) {
     logger.error("Failed to upload avatar", { error });
 
-    return res.status(500).json({
-      meta: { code: 500, message: "Internal Server Error" },
-    });
+    return sendError(res, "Internal Server Error", 500, error);
   }
 };
 

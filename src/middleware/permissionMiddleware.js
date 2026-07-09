@@ -1,12 +1,11 @@
 import { createLogger } from "../utils/logger.js";
+import { sendError } from "../utils/response.js";
 const logger = createLogger("PermissionMiddleware");
 
 export const authorizePermission = (requiredPermission) => {
   return (req, res, next) => {
     if (!req.user) {
-      return res.status(401).json({
-        meta: { code: 401, message: "Unauthorized" },
-      });
+      return sendError(res, "Unauthorized", 401);
     }
 
     const userPermissions = req.user.permissions || [];
@@ -21,12 +20,7 @@ export const authorizePermission = (requiredPermission) => {
         path: req.originalUrl,
       });
 
-      return res.status(403).json({
-        meta: {
-          code: 403,
-          message: "Forbidden - missing permission",
-        },
-      });
+      return sendError(res, "Forbidden - missing permission", 403);
     }
 
     next();
