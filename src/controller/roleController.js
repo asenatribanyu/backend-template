@@ -2,6 +2,7 @@ import models from "../model/index.js";
 import { createLogger } from "../utils/logger.js";
 import { sendSuccess, sendError } from "../utils/response.js";
 import { clearCache } from "../utils/cache.js";
+import { invalidateUserPermissionCache } from "../middleware/authMiddleware.js";
 
 const logger = createLogger("RoleController");
 const { Role, Permission, RolePermission } = models;
@@ -119,6 +120,12 @@ const update = async (req, res) => {
 
     await clearCache("cache:/api/roles*");
 
+    // Invalidate permission cache for all users with this role
+    const usersWithRole = await models.User.findAll({ where: { roleId: role.id }, attributes: ["id"] });
+    for (const u of usersWithRole) {
+      await invalidateUserPermissionCache(u.id);
+    }
+
     return sendSuccess(res, result, "Role updated", 200);
   } catch (error) {
     logger.error("Failed to update role", { error });
@@ -137,6 +144,12 @@ const remove = async (req, res) => {
     await role.destroy();
 
     await clearCache("cache:/api/roles*");
+
+    // Invalidate permission cache for all users with this role
+    const usersWithRole = await models.User.findAll({ where: { roleId: role.id }, attributes: ["id"] });
+    for (const u of usersWithRole) {
+      await invalidateUserPermissionCache(u.id);
+    }
 
     return sendSuccess(res, null, "Role deleted", 200);
   } catch (error) {

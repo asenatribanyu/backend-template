@@ -211,6 +211,9 @@ const login = async (req, res) => {
     const refreshToken = generateRefreshToken();
     const hashedRefreshToken = hashToken(refreshToken);
 
+    // Update lastLoginAt
+    await user.update({ lastLoginAt: new Date() });
+
     await RefreshToken.create({
       userId: user.id,
       tokenHash: hashedRefreshToken,

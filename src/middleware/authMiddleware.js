@@ -3,9 +3,12 @@ import models from "../model/index.js";
 import config from "../config/config.js";
 import { createLogger } from "../utils/logger.js";
 import { sendError } from "../utils/response.js";
+import { redis } from "../libs/redis.js";
 const logger = createLogger("AuthMiddleware");
 
 const { User, Role, Permission } = models;
+
+const PERMISSION_CACHE_TTL = 300; // 5 minutes
 
 export const authMiddleware = async (req, res, next) => {
   try {
@@ -35,6 +38,16 @@ export const authMiddleware = async (req, res, next) => {
       return sendError(res, "Invalid or expired token", 401);
     }
 
+    // Try Redis cache first
+    const cacheKey = `user:permissions:${decoded.id}`;
+    const cached = await redis.get(cacheKey).catch(() => null);
+
+    if (cached) {
+      req.user = JSON.parse(cached);
+      return next();
+    }
+
+    // Cache miss — query DB
     const user = await User.findByPk(decoded.id, {
       include: [
         {
@@ -43,9 +56,7 @@ export const authMiddleware = async (req, res, next) => {
             {
               model: Permission,
               attributes: ["name"],
-              through: {
-                attributes: [],
-              },
+              through: { attributes: [] },
             },
           ],
         },
@@ -53,16 +64,13 @@ export const authMiddleware = async (req, res, next) => {
     });
 
     if (!user) {
-      logger.warn("User not found for valid token", {
-        userId: decoded.id,
-      });
-
+      logger.warn("User not found for valid token", { userId: decoded.id });
       return sendError(res, "Unauthorized", 401);
     }
 
     const permissions = user.Role?.Permissions?.map((p) => p.name) || [];
 
-    req.user = {
+    const userData = {
       id: user.id,
       email: user.email,
       username: user.username,
@@ -71,10 +79,24 @@ export const authMiddleware = async (req, res, next) => {
       permissions,
     };
 
+    // Cache in Redis
+    await redis.setex(cacheKey, PERMISSION_CACHE_TTL, JSON.stringify(userData)).catch((err) => {
+      logger.warn("Failed to cache user permissions", { error: err });
+    });
+
+    req.user = userData;
     next();
   } catch (error) {
     logger.error("Auth middleware error", { error });
-
     return sendError(res, "Internal Server Error", 500, error);
   }
+};
+
+/**
+ * Invalidate cached permissions for a user.
+ * Call this when roles/permissions change.
+ */
+export const invalidateUserPermissionCache = async (userId) => {
+  const key = `user:permissions:${userId}`;
+  await redis.del(key).catch(() => {});
 };
