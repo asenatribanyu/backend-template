@@ -10,7 +10,9 @@
     "db:migrate": "node src/database/migrator.js up",
     "db:migrate:undo": "node src/database/migrator.js down",
     "db:seed": "node src/database/seeder/seeder.js",
-    "worker-email": "node src/worker/emailWorker.js"
+    "worker-email": "node src/worker/emailWorker.js",
+    "lint": "eslint .",
+    "format": "prettier --write ."
   },
   "keywords": [],
   "author": "",
@@ -47,6 +49,10 @@
     "winston-daily-rotate-file": "^5.0.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "eslint": "^10.7.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.6",
+    "nodemon": "^3.1.14",
+    "prettier": "^3.9.5"
   }
 }
