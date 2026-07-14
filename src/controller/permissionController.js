@@ -2,17 +2,22 @@ import models from "../model/index.js";
 import { createLogger } from "../utils/logger.js";
 import { sendSuccess, sendError } from "../utils/response.js";
 import { clearCache } from "../utils/cache.js";
+import { paginate, getPaginationParams } from "../utils/pagination.js";
 
 const logger = createLogger("PermissionController");
 const { Permission } = models;
 
 const getAll = async (req, res) => {
   try {
-    const permissions = await Permission.findAll({
-      order: [["name", "ASC"]],
+    const paginationParams = getPaginationParams(req.query);
+
+    const { data, pagination } = await paginate(Permission, {
+      ...paginationParams,
+      sortBy: paginationParams.sortBy || "name",
+      order: paginationParams.order || "asc",
     });
 
-    return sendSuccess(res, permissions, "Success", 200);
+    return sendSuccess(res, data, "Success", 200, pagination);
   } catch (error) {
     logger.error("Failed to list permissions", { error });
     return sendError(res, "Internal Server Error", 500, error);

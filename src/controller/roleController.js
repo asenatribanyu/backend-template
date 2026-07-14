@@ -3,13 +3,19 @@ import { createLogger } from "../utils/logger.js";
 import { sendSuccess, sendError } from "../utils/response.js";
 import { clearCache } from "../utils/cache.js";
 import { invalidateUserPermissionCache } from "../middleware/authMiddleware.js";
+import { paginate, getPaginationParams } from "../utils/pagination.js";
 
 const logger = createLogger("RoleController");
 const { Role, Permission, RolePermission } = models;
 
 const getAll = async (req, res) => {
   try {
-    const roles = await Role.findAll({
+    const paginationParams = getPaginationParams(req.query);
+
+    const { data, pagination } = await paginate(Role, {
+      ...paginationParams,
+      sortBy: paginationParams.sortBy || "name",
+      order: paginationParams.order || "asc",
       include: [
         {
           model: Permission,
@@ -19,7 +25,7 @@ const getAll = async (req, res) => {
       ],
     });
 
-    return sendSuccess(res, roles, "Success", 200);
+    return sendSuccess(res, data, "Success", 200, pagination);
   } catch (error) {
     logger.error("Failed to list roles", { error });
     return sendError(res, "Internal Server Error", 500, error);
