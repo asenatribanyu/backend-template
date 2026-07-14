@@ -4,6 +4,7 @@ import userRouter from "./userRouter.js";
 import roleRouter from "./roleRouter.js";
 import permissionRouter from "./permissionRouter.js";
 import auditLogRouter from "./auditLogRouter.js";
+import adminUserRouter from "./adminUserRouter.js";
 import db from "../database/database.js";
 import { redis } from "../libs/redis.js";
 
@@ -33,10 +34,11 @@ router.get("/health", async (req, res) => {
       },
     });
   } catch (error) {
+    const isDevelopment = process.env.NODE_ENV === "DEVELOPMENT";
     return res.status(503).json({
       meta: { code: 503, message: "Service Unavailable" },
       data: {
-        error: error.message,
+        error: isDevelopment ? error.message : "Service is currently unavailable",
       },
     });
   }
@@ -46,7 +48,7 @@ router.use("/auth", authRouter);
 router.use("/me", userRouter);
 router.use("/roles", roleRouter);
 router.use("/permissions", permissionRouter);
-router.use("/users", userRouter); // Additional route pointing to userRouter for admin
+router.use("/users", adminUserRouter);
 router.use("/audit-logs", auditLogRouter);
 
 export default router;

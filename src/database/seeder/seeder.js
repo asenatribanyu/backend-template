@@ -1,3 +1,4 @@
+import "dotenv/config.js";
 import db from "../database.js";
 import "../../model/index.js";
 import { v7 as uuidv7 } from "uuid";

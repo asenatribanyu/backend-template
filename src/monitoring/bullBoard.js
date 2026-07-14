@@ -4,7 +4,9 @@ import { ExpressAdapter } from "@bull-board/express";
 
 import { emailQueue } from "../queue/emailQueue.js";
 
-export const setupBullBoard = (app, { authMiddleware, authorizePermission }) => {
+import { adminBasicAuth } from "../middleware/basicAuthMiddleware.js";
+
+export const setupBullBoard = (app) => {
   const serverAdapter = new ExpressAdapter();
 
   serverAdapter.setBasePath("/admin/queues");
@@ -14,5 +16,5 @@ export const setupBullBoard = (app, { authMiddleware, authorizePermission }) => 
     serverAdapter,
   });
 
-  app.use("/admin/queues", authMiddleware, authorizePermission("bullBoard.access"), serverAdapter.getRouter());
+  app.use("/admin/queues", adminBasicAuth, serverAdapter.getRouter());
 };

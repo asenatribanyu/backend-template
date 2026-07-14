@@ -25,6 +25,6 @@ export default [
       "no-console": ["warn", { allow: ["warn", "error"] }],
       "prettier/prettier": "error",
     },
-    ignores: ["node_modules/**", "coverage/**", "logs/**", "storage/**"],
   },
+  { ignores: ["node_modules/**", "coverage/**", "logs/**", "storage/**"] },
 ];

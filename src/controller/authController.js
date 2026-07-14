@@ -22,10 +22,10 @@ const register = async (req, res) => {
       where: {
         [Op.or]: [{ username: username.toLowerCase() }, { email: email.toLowerCase() }],
       },
+      transaction: t,
     });
 
     if (existingUser) {
-      await t.rollback();
       await AuditLog.create(
         buildAuditLog({
           type: "EVENT",
@@ -37,11 +37,13 @@ const register = async (req, res) => {
           },
           req,
         }),
+        { transaction: t },
       );
+      await t.commit();
       return sendError(res, "Username or email already exists", 400);
     }
 
-    const userRole = await Role.findOne({ where: { name: "user" } });
+    const userRole = await Role.findOne({ where: { name: "user" }, transaction: t });
     if (!userRole) {
       await t.rollback();
       return sendError(res, "User role not found", 404);
@@ -123,7 +125,7 @@ const login = async (req, res) => {
 
     const user = await User.findOne({
       where: {
-        [Op.or]: [{ email: login }, { username: login }],
+        [Op.or]: [{ email: login.toLowerCase() }, { username: login.toLowerCase() }],
       },
       include: [
         {
@@ -337,7 +339,15 @@ const refreshToken = async (req, res) => {
         { transaction: t },
       );
 
-      await t.rollback();
+      // Token Reuse Detection: If token exists but was already revoked, it's a theft!
+      if (token && token.revokedAt) {
+        logger.warn(`SECURITY ALERT: Token reuse detected for user ${token.userId}. Revoking all sessions.`);
+        await RefreshToken.destroy({ where: { userId: token.userId }, transaction: t });
+        await t.commit();
+        return sendError(res, "Security alert: Token reuse detected. All sessions have been revoked.", 401);
+      }
+
+      await t.commit();
 
       return sendError(res, "Invalid refresh token", 401);
     }
@@ -370,9 +380,29 @@ const refreshToken = async (req, res) => {
         { transaction: t },
       );
 
-      await t.rollback();
+      await t.commit();
 
       return sendError(res, "Invalid refresh token", 401);
+    }
+
+    if (user.isBlocked) {
+      await AuditLog.create(
+        buildAuditLog({
+          type: "EVENT",
+          action: "REFRESH_TOKEN_FAILED",
+          entityType: "Auth",
+          metadata: {
+            reason: "account_blocked",
+          },
+          req,
+        }),
+        { transaction: t },
+      );
+
+      await token.update({ revokedAt: new Date() }, { transaction: t });
+      await t.commit();
+
+      return sendError(res, "Account is blocked", 403);
     }
 
     const accessToken = generateAccessToken(user);
@@ -450,7 +480,7 @@ const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
 
-    const user = await User.findOne({ where: { email } });
+    const user = await User.findOne({ where: { email: email.toLowerCase() } });
 
     if (!user) {
       return sendSuccess(res, null, "If email exists, reset link has been sent", 200);
@@ -487,7 +517,7 @@ const forgotPassword = async (req, res) => {
       }),
     );
 
-    const resetLink = `${config.app.frontendUrl}/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`;
+    const resetLink = `${config.app.frontendUrl}/reset-password?token=${resetToken}&email=${encodeURIComponent(email.toLowerCase())}`;
 
     await emailQueue.add("reset-password-email", {
       to: user.email,
@@ -516,7 +546,7 @@ const resetPassword = async (req, res) => {
       return sendError(res, "Token and password are required", 400);
     }
 
-    const user = await User.findOne({ where: { email } });
+    const user = await User.findOne({ where: { email: email.toLowerCase() } });
 
     if (!user) {
       logger.warn(`Password reset failed - user not found for email: ${email}`);
@@ -547,6 +577,9 @@ const resetPassword = async (req, res) => {
     await user.update({
       password: hashedPassword,
     });
+
+    // Revoke all existing sessions
+    await RefreshToken.destroy({ where: { userId: user.id } });
 
     await AuditLog.create(
       buildAuditLog({

@@ -1,3 +1,4 @@
+import "dotenv/config.js";
 import { Umzug, SequelizeStorage } from "umzug";
 import { fileURLToPath, pathToFileURL } from "url";
 import path from "path";

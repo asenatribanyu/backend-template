@@ -4,6 +4,8 @@ import { createLogger } from "../utils/logger.js";
 const logger = createLogger("UserController");
 import bcrypt from "bcrypt";
 import { buildAuditLog } from "../services/auditLog.js";
+import { BCRYPT_SALT_ROUNDS } from "../config/constants.js";
+import { invalidateUserPermissionCache } from "../middleware/authMiddleware.js";
 import path from "path";
 import fs from "fs";
 import { sendSuccess, sendError } from "../utils/response.js";
@@ -51,7 +53,7 @@ const update = async (req, res) => {
     });
 
     if (!user) {
-      if (!t.finished) await t.rollback();
+      await t.rollback();
       return sendError(res, "User not found", 404);
     }
 
@@ -59,12 +61,12 @@ const update = async (req, res) => {
 
     const userData = {};
 
-    if (username !== undefined) userData.username = username;
-    if (email !== undefined) userData.email = email;
+    if (username !== undefined) userData.username = username.toLowerCase();
+    if (email !== undefined) userData.email = email.toLowerCase();
     if (phone !== undefined) userData.phone = phone;
 
     if (password) {
-      userData.password = await bcrypt.hash(password, 10);
+      userData.password = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
     }
 
     if (Object.keys(userData).length > 0) {
@@ -110,7 +112,11 @@ const update = async (req, res) => {
 
     return sendSuccess(res, after, "Updated successfully", 200);
   } catch (error) {
-    if (!t.finished) await t.rollback();
+    try {
+      await t.rollback();
+    } catch {
+      /* ignore */
+    }
 
     logger.error("Failed to update user", { error });
 
@@ -240,6 +246,8 @@ const updateRole = async (req, res) => {
       }),
     );
 
+    await invalidateUserPermissionCache(user.id);
+
     return sendSuccess(res, null, "User role updated successfully", 200);
   } catch (error) {
     logger.error("Failed to update user role", { error });
@@ -271,6 +279,8 @@ const updateStatus = async (req, res) => {
       }),
     );
 
+    await invalidateUserPermissionCache(user.id);
+
     return sendSuccess(res, null, `User ${isBlocked ? "blocked" : "unblocked"} successfully`, 200);
   } catch (error) {
     logger.error("Failed to update user status", { error });
@@ -300,6 +310,8 @@ const remove = async (req, res) => {
         req,
       }),
     );
+
+    await invalidateUserPermissionCache(user.id);
 
     return sendSuccess(res, null, "User deleted successfully", 200);
   } catch (error) {

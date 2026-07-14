@@ -2,7 +2,6 @@ import models from "../model/index.js";
 import { createLogger } from "../utils/logger.js";
 import { sendSuccess, sendError } from "../utils/response.js";
 import { clearCache } from "../utils/cache.js";
-import { invalidateUserPermissionCache } from "../middleware/authMiddleware.js";
 import { paginate, getPaginationParams } from "../utils/pagination.js";
 
 const logger = createLogger("RoleController");
@@ -126,11 +125,8 @@ const update = async (req, res) => {
 
     await clearCache("cache:/api/roles*");
 
-    // Invalidate permission cache for all users with this role
-    const usersWithRole = await models.User.findAll({ where: { roleId: role.id }, attributes: ["id"] });
-    for (const u of usersWithRole) {
-      await invalidateUserPermissionCache(u.id);
-    }
+    // Invalidate permission cache for all users
+    await clearCache("user:permissions:*");
 
     return sendSuccess(res, result, "Role updated", 200);
   } catch (error) {
@@ -151,11 +147,8 @@ const remove = async (req, res) => {
 
     await clearCache("cache:/api/roles*");
 
-    // Invalidate permission cache for all users with this role
-    const usersWithRole = await models.User.findAll({ where: { roleId: role.id }, attributes: ["id"] });
-    for (const u of usersWithRole) {
-      await invalidateUserPermissionCache(u.id);
-    }
+    // Invalidate permission cache for all users
+    await clearCache("user:permissions:*");
 
     return sendSuccess(res, null, "Role deleted", 200);
   } catch (error) {

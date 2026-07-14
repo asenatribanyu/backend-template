@@ -3,20 +3,20 @@ import { validate } from "./index.js";
 
 export const updateUserSchema = validate(
   Joi.object({
-    username: Joi.string(),
-    email: Joi.string().email(),
-    phone: Joi.string(),
-    password: Joi.string().min(6),
+    username: Joi.string().max(30),
+    email: Joi.string().email().max(255),
+    phone: Joi.string().max(255),
+    password: Joi.string().min(6).max(128),
 
     profile: Joi.object({
-      firstName: Joi.string(),
-      lastName: Joi.string(),
+      firstName: Joi.string().max(255),
+      lastName: Joi.string().max(255),
       dateOfBirth: Joi.date(),
       gender: Joi.string().valid("male", "female"),
-      address: Joi.string(),
-      position: Joi.string(),
-      occupation: Joi.string(),
-      bio: Joi.string(),
+      address: Joi.string().max(255),
+      position: Joi.string().max(255),
+      occupation: Joi.string().max(255),
+      bio: Joi.string().max(5000),
     }),
   }),
 );

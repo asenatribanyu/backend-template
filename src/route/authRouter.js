@@ -30,7 +30,7 @@ router.post("/logout", authMiddleware, logout);
 router.post("/refresh-token", refreshTokenSchema, refreshToken);
 router.post("/forgot-password", authLimiter, forgotPasswordSchema, forgotPassword);
 router.post("/reset-password", authLimiter, resetPasswordSchema, resetPassword);
-router.post("/verify-email", verifyEmailSchema, verifyEmail);
+router.post("/verify-email", authLimiter, verifyEmailSchema, verifyEmail);
 router.post("/resend-verification", authLimiter, resendVerificationSchema, resendVerification);
 
 export default router;

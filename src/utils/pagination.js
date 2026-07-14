@@ -6,12 +6,16 @@ export const paginate = async (model, options = {}) => {
   const offset = (safePage - 1) * safeLimit;
   const safeOrder = ["asc", "desc"].includes(order.toLowerCase()) ? order.toLowerCase() : "desc";
 
+  const validSortColumns = Object.keys(model.rawAttributes);
+  const safeSortBy = validSortColumns.includes(sortBy) ? sortBy : "createdAt";
+
   const queryOptions = {
     where,
     include,
-    order: [[sortBy, safeOrder.toUpperCase()]],
+    order: [[safeSortBy, safeOrder.toUpperCase()]],
     limit: safeLimit,
     offset,
+    distinct: true,
   };
 
   if (attributes) {

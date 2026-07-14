@@ -10,7 +10,7 @@ export const sendSuccess = (res, data = null, message = "Success", statusCode = 
     response.pagination = pagination;
   }
 
-  if (data) {
+  if (data !== undefined) {
     response.data = data;
   }
 

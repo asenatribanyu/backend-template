@@ -1,0 +1,8 @@
+node_modules/
+coverage/
+logs/
+storage/
+package-lock.json
+*.hbs
+*.log
+dist/

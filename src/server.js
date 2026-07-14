@@ -1,5 +1,4 @@
-import dotenv from "dotenv";
-dotenv.config();
+import "dotenv/config.js";
 
 import express from "express";
 import cors from "cors";
@@ -11,8 +10,7 @@ const logger = createLogger("Server");
 import db from "./database/database.js";
 import "./model/index.js";
 import { setupBullBoard } from "./monitoring/bullBoard.js";
-import { authMiddleware } from "./middleware/authMiddleware.js";
-import { authorizePermission } from "./middleware/permissionMiddleware.js";
+
 import cookieParser from "cookie-parser";
 import path from "path";
 import { runMigrations } from "./database/migrator.js";
@@ -46,25 +44,23 @@ app.use(
     credentials: true,
   }),
 );
-app.use(express.json({ limit: "10mb" }));
+app.use(express.json({ limit: "1mb" }));
 app.use(cookieParser());
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 app.set("trust proxy", 1);
 
-setupBullBoard(app, {
-  authMiddleware,
-  authorizePermission,
-});
+setupBullBoard(app);
 
 app.use("/storage/public", express.static(path.resolve("storage/public")));
+app.use("/storage/avatar", express.static(path.resolve("storage/avatar")));
 app.use("/api", route);
+
+app.use(errorHandler);
 
 app.use((req, res) => {
   logger.warn(`404 Not Found: ${req.originalUrl}`);
   return sendError(res, "Not Found: The requested endpoint does not exist", 404);
 });
-
-app.use(errorHandler);
 
 const startServer = async () => {
   try {
@@ -72,10 +68,8 @@ const startServer = async () => {
     logger.info("Database connected");
 
     if (mode === "DEVELOPMENT") {
-      await db.sync({ alter: true });
       logger.info("Database synced");
     } else {
-      // Production: run umzug migrations
       await runMigrations();
       logger.info("Migrations executed");
     }
@@ -93,6 +87,11 @@ const startServer = async () => {
           logger.info("Database connection closed");
           await redis.quit();
           logger.info("Redis connection closed");
+
+          const { emailQueue } = await import("./queue/emailQueue.js");
+          await emailQueue.close();
+          logger.info("Email queue closed");
+
           process.exit(0);
         } catch (error) {
           logger.error("Error during shutdown:", { error });
@@ -110,6 +109,7 @@ const startServer = async () => {
     process.on("SIGINT", gracefulShutdown);
   } catch (err) {
     logger.error("Failed to start server:", { error: err });
+    process.exit(1);
   }
 };
 

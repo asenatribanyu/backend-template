@@ -13,6 +13,14 @@ export const errorHandler = (err, req, res, _next) => {
     return sendError(res, "Validation Error", 400, null, errors);
   }
 
+  if (err.name === "SequelizeForeignKeyConstraintError") {
+    return sendError(
+      res,
+      "Cannot proceed because the resource is currently in use or depends on another resource",
+      400,
+    );
+  }
+
   if (err.name === "MulterError") {
     return sendError(res, `Upload Error: ${err.message}`, 400);
   }

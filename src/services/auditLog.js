@@ -117,8 +117,8 @@ function buildAuditLog({
       actorId: actor?.id || null,
       actorType: actor?.type || "GUEST",
 
-      action,
-      entityType,
+      action: action?.slice(0, 255),
+      entityType: entityType?.slice(0, 255),
       entityId,
 
       changedFields: safeChangedFields.length ? safeChangedFields : null,
@@ -128,10 +128,10 @@ function buildAuditLog({
 
       metadata,
 
-      message,
+      message: message?.slice(0, 255),
 
-      ipAddress: req?.ip || null,
-      userAgent: req?.headers?.["user-agent"] || null,
+      ipAddress: req?.ip?.slice(0, 255) || null,
+      userAgent: req?.headers?.["user-agent"]?.slice(0, 255) || null,
     };
   } catch (error) {
     logger.error("Error building audit log entry:", { error: error });

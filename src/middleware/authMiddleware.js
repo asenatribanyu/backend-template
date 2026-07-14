@@ -68,6 +68,11 @@ export const authMiddleware = async (req, res, next) => {
       return sendError(res, "Unauthorized", 401);
     }
 
+    if (user.isBlocked) {
+      logger.warn("Blocked user attempted to access API", { userId: decoded.id });
+      return sendError(res, "Account is blocked", 403);
+    }
+
     const permissions = user.Role?.Permissions?.map((p) => p.name) || [];
 
     const userData = {

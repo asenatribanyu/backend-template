@@ -36,6 +36,7 @@ const create = async (req, res) => {
     const permission = await Permission.create({ name });
 
     await clearCache("cache:/api/permissions*");
+    await clearCache("user:permissions:*");
 
     return sendSuccess(res, permission, "Permission created", 201);
   } catch (error) {
@@ -55,6 +56,7 @@ const remove = async (req, res) => {
     await permission.destroy();
 
     await clearCache("cache:/api/permissions*");
+    await clearCache("user:permissions:*");
 
     return sendSuccess(res, null, "Permission deleted", 200);
   } catch (error) {

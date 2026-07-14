@@ -1,8 +1,8 @@
-const required = ["JWT_SECRET", "DB_HOST", "DB_NAME", "DB_USER", "DB_DIALECT"];
+const required = ["JWT_SECRET", "DB_HOST", "DB_NAME", "DB_USER", "DB_DIALECT", "FRONTEND_URL", "NODE_ENV"];
 
 for (const key of required) {
   if (!process.env[key]) {
-    throw new Error(`❌ Missing required environment variable: ${key}`);
+    throw new Error(`Missing required environment variable: ${key}`);
   }
 }
 

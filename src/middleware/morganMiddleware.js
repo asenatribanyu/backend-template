@@ -9,7 +9,7 @@ const stream = {
 
 const skip = () => {
   const env = process.env.NODE_ENV || "DEVELOPMENT";
-  return env !== "DEVELOPMENT";
+  return env === "TEST";
 };
 
 export const morganMiddleware = morgan(":method :url :status :res[content-length] - :response-time ms", {
