@@ -1,6 +1,7 @@
 import winston from "winston";
 import "winston-daily-rotate-file";
 import fs from "fs";
+import { requestContext } from "../middleware/requestIdMiddleware.js";
 
 const logDir = "logs";
 
@@ -29,10 +30,19 @@ const safeStringify = (obj) => {
 };
 
 // Format khusus untuk console (development)
+const injectRequestId = winston.format((info) => {
+  const store = requestContext.getStore();
+  if (store && store.requestId) {
+    info.requestId = store.requestId;
+  }
+  return info;
+});
+
 const consoleFormat = printf((info) => {
-  const { level, message, label, timestamp, stack, error, ...meta } = info;
+  const { level, message, label, timestamp, stack, error, requestId, ...meta } = info;
   
-  let log = `[${timestamp}] ${level} [${label || 'App'}]: ${message}`;
+  const reqIdStr = requestId ? ` [ReqID: ${requestId}]` : "";
+  let log = `[${timestamp}] ${level} [${label || 'App'}]${reqIdStr}: ${message}`;
 
   if (error) {
     log += `\nError: ${error.message || error}`;
@@ -78,6 +88,7 @@ const consoleFormat = printf((info) => {
 const isDevelopment = process.env.NODE_ENV === "DEVELOPMENT";
 
 const fileFormat = combine(
+  injectRequestId(),
   timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
   errors({ stack: true }),
   splat(),
@@ -85,6 +96,7 @@ const fileFormat = combine(
 );
 
 const devFormat = combine(
+  injectRequestId(),
   colorize(),
   timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
   errors({ stack: true }),

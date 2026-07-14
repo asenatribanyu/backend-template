@@ -22,6 +22,7 @@ import { errorHandler } from "./middleware/errorMiddleware.js";
 import { morganMiddleware } from "./middleware/morganMiddleware.js";
 import { redis } from "./libs/redis.js";
 import { sendError } from "./utils/response.js";
+import { requestIdMiddleware } from "./middleware/requestIdMiddleware.js";
 
 const mode = config.app.env;
 
@@ -29,6 +30,7 @@ const app = express();
 const PORT = config.app.port;
 
 app.use(morganMiddleware);
+app.use(requestIdMiddleware);
 app.use(globalLimiter);
 
 app.use(
