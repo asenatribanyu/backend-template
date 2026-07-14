@@ -62,9 +62,7 @@ const seed = async () => {
 
     // Assign basic permissions to user role
     const userPermissions = ["me.show", "me.update", "me.update.avatar"];
-    const userPermRecords = permissionRecords.filter((p) =>
-      userPermissions.includes(p.name),
-    );
+    const userPermRecords = permissionRecords.filter((p) => userPermissions.includes(p.name));
 
     for (const perm of userPermRecords) {
       await db.models.RolePermission.findOrCreate({

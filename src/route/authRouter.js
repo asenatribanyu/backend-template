@@ -1,6 +1,23 @@
 import { Router } from "express";
-import { register, login, logout, refreshToken, forgotPassword, resetPassword, verifyEmail, resendVerification } from "../controller/authController.js";
-import { registerSchema, loginSchema, refreshTokenSchema, forgotPasswordSchema, resetPasswordSchema, verifyEmailSchema, resendVerificationSchema } from "../middleware/validator/authValidator.js";
+import {
+  register,
+  login,
+  logout,
+  refreshToken,
+  forgotPassword,
+  resetPassword,
+  verifyEmail,
+  resendVerification,
+} from "../controller/authController.js";
+import {
+  registerSchema,
+  loginSchema,
+  refreshTokenSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+  verifyEmailSchema,
+  resendVerificationSchema,
+} from "../middleware/validator/authValidator.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 
 import { authLimiter } from "../middleware/rateLimitMiddleware.js";

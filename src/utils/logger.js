@@ -9,7 +9,7 @@ if (!fs.existsSync(logDir)) {
   fs.mkdirSync(logDir);
 }
 
-const { combine, timestamp, printf, colorize, errors, splat, json, label } = winston.format;
+const { combine, timestamp, printf, colorize, errors, splat, json } = winston.format;
 
 const safeStringify = (obj) => {
   const cache = new WeakSet();
@@ -40,9 +40,9 @@ const injectRequestId = winston.format((info) => {
 
 const consoleFormat = printf((info) => {
   const { level, message, label, timestamp, stack, error, requestId, ...meta } = info;
-  
+
   const reqIdStr = requestId ? ` [ReqID: ${requestId}]` : "";
-  let log = `[${timestamp}] ${level} [${label || 'App'}]${reqIdStr}: ${message}`;
+  let log = `[${timestamp}] ${level} [${label || "App"}]${reqIdStr}: ${message}`;
 
   if (error) {
     log += `\nError: ${error.message || error}`;
@@ -69,7 +69,7 @@ const consoleFormat = printf((info) => {
   }
 
   // Remove symbol keys and common winston properties to check if any other metadata exists
-  const metaKeys = Object.keys(meta).filter(k => k !== '0');
+  const metaKeys = Object.keys(meta).filter((k) => k !== "0");
   if (metaKeys.length) {
     const cleanMeta = {};
     for (const key of metaKeys) {
@@ -79,7 +79,7 @@ const consoleFormat = printf((info) => {
       log += `\nMeta:\n${safeStringify(cleanMeta)}`;
     }
   } else if (meta[0] && !meta[0].errors && !meta[0].parent && !meta[0].original) {
-     log += `\nMeta:\n${safeStringify(meta[0])}`;
+    log += `\nMeta:\n${safeStringify(meta[0])}`;
   }
 
   return log;
@@ -92,7 +92,7 @@ const fileFormat = combine(
   timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
   errors({ stack: true }),
   splat(),
-  json()
+  json(),
 );
 
 const devFormat = combine(
@@ -101,7 +101,7 @@ const devFormat = combine(
   timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
   errors({ stack: true }),
   splat(),
-  consoleFormat
+  consoleFormat,
 );
 
 const combinedTransport = new winston.transports.DailyRotateFile({

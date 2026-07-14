@@ -3,10 +3,10 @@
 export default {
   async up(queryInterface, Sequelize) {
     await queryInterface.sequelize.query(
-      'CREATE TYPE "enum_audit_logs_type" AS ENUM(\'CREATE\', \'UPDATE\', \'DELETE\', \'EVENT\');',
+      "CREATE TYPE \"enum_audit_logs_type\" AS ENUM('CREATE', 'UPDATE', 'DELETE', 'EVENT');",
     );
     await queryInterface.sequelize.query(
-      'CREATE TYPE "enum_audit_logs_actor_type" AS ENUM(\'USER\', \'SYSTEM\', \'GUEST\', \'ADMIN\');',
+      "CREATE TYPE \"enum_audit_logs_actor_type\" AS ENUM('USER', 'SYSTEM', 'GUEST', 'ADMIN');",
     );
 
     await queryInterface.createTable("audit_logs", {
@@ -84,11 +84,7 @@ export default {
 
   async down(queryInterface) {
     await queryInterface.dropTable("audit_logs");
-    await queryInterface.sequelize.query(
-      'DROP TYPE IF EXISTS "enum_audit_logs_type";',
-    );
-    await queryInterface.sequelize.query(
-      'DROP TYPE IF EXISTS "enum_audit_logs_actor_type";',
-    );
+    await queryInterface.sequelize.query('DROP TYPE IF EXISTS "enum_audit_logs_type";');
+    await queryInterface.sequelize.query('DROP TYPE IF EXISTS "enum_audit_logs_actor_type";');
   },
 };

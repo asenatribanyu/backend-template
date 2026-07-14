@@ -16,12 +16,7 @@ const router = Router();
 router.use(authMiddleware);
 
 router.get("/", authorizePermission("me.show"), show);
-router.put(
-  "/",
-  authorizePermission("me.update"),
-  updateUserSchema,
-  update,
-);
+router.put("/", authorizePermission("me.update"), updateUserSchema, update);
 router.post(
   "/avatar",
   authorizePermission("me.update.avatar"),

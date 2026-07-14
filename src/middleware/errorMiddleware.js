@@ -2,7 +2,7 @@ import { createLogger } from "../utils/logger.js";
 import { sendError } from "../utils/response.js";
 const logger = createLogger("ErrorHandler");
 
-export const errorHandler = (err, req, res, next) => {
+export const errorHandler = (err, req, res, _next) => {
   logger.error("Unhandled Exception:", { error: err, path: req.originalUrl });
 
   const statusCode = err.statusCode || err.status || 500;

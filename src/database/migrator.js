@@ -1,7 +1,6 @@
 import { Umzug, SequelizeStorage } from "umzug";
 import { fileURLToPath, pathToFileURL } from "url";
 import path from "path";
-import fs from "fs";
 import db from "./database.js";
 import { createLogger } from "../utils/logger.js";
 

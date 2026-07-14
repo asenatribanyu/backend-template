@@ -67,8 +67,6 @@ export default {
 
   async down(queryInterface) {
     await queryInterface.dropTable("profiles");
-    await queryInterface.sequelize.query(
-      'DROP TYPE IF EXISTS "enum_profiles_gender";',
-    );
+    await queryInterface.sequelize.query('DROP TYPE IF EXISTS "enum_profiles_gender";');
   },
 };

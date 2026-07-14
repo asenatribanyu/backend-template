@@ -1,13 +1,5 @@
 export const paginate = async (model, options = {}) => {
-  const {
-    page = 1,
-    limit = 20,
-    sortBy = "created_at",
-    order = "desc",
-    where = {},
-    include = [],
-    attributes,
-  } = options;
+  const { page = 1, limit = 20, sortBy = "created_at", order = "desc", where = {}, include = [], attributes } = options;
 
   const safePage = Math.max(1, parseInt(page, 10) || 1);
   const safeLimit = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));

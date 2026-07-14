@@ -61,7 +61,7 @@ export const processUploadedFiles = (folder) => {
         if (isImage) {
           finalFilename = `${filename}.webp`;
           const finalFilepath = path.join(`storage/${folder}`, finalFilename);
-          
+
           await sharp(file.buffer).webp({ quality: 80 }).toFile(finalFilepath);
 
           file.mimetype = "image/webp";

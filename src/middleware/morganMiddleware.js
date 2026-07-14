@@ -12,7 +12,7 @@ const skip = () => {
   return env !== "DEVELOPMENT";
 };
 
-export const morganMiddleware = morgan(
-  ":method :url :status :res[content-length] - :response-time ms",
-  { stream, skip },
-);
+export const morganMiddleware = morgan(":method :url :status :res[content-length] - :response-time ms", {
+  stream,
+  skip,
+});
