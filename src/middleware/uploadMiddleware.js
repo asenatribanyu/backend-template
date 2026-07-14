@@ -3,6 +3,7 @@ import path from "path";
 import fs from "fs";
 import fsPromises from "fs/promises";
 import sharp from "sharp";
+import { nanoid } from "nanoid";
 
 export const createUploader = ({ folder, allowedMimeTypes = [], maxSize = 5 * 1024 * 1024 }) => {
   const storagePath = `storage/${folder}`;
@@ -51,7 +52,7 @@ export const processUploadedFiles = (folder) => {
       for (const file of files) {
         const isImage = file.mimetype.startsWith("image/");
 
-        const filename = `${Date.now()}-${file.fieldname}`;
+        const filename = `${Date.now()}-${nanoid(8)}-${file.fieldname}`;
 
         const filepath = path.join(`storage/${folder}`, filename);
 
@@ -102,7 +103,8 @@ export const createRawUploader = ({ getDestination, allowedMimeTypes = [], maxSi
 
     filename: (req, file, cb) => {
       try {
-        cb(null, `${file.originalname}`);
+        const safeName = path.basename(file.originalname).replace(/[^a-zA-Z0-9._-]/g, "_");
+        cb(null, `${Date.now()}-${safeName}`);
       } catch (error) {
         cb(error);
       }

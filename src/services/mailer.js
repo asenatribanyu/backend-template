@@ -13,7 +13,7 @@ const transporter = nodemailer.createTransport({
 });
 
 export const sendEmail = async ({ to, subject, template, data }) => {
-  const html = compileTemplate(template, data);
+  const html = await compileTemplate(template, data);
 
   await transporter.sendMail({
     from: config.mail.from,

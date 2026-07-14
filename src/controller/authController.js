@@ -276,12 +276,7 @@ const logout = async (req, res) => {
   } catch (error) {
     logger.error("Failed to logout:", { error });
 
-    return res.status(500).json({
-      meta: {
-        code: 500,
-        message: "Internal Server Error",
-      },
-    });
+    return sendError(res, "Internal Server Error", 500, error);
   }
 };
 
@@ -314,9 +309,7 @@ const refreshToken = async (req, res) => {
 
       await t.rollback();
 
-      return res.status(401).json({
-        meta: { code: 401, message: "Invalid refresh token" },
-      });
+      return sendError(res, "Invalid refresh token", 401);
     }
 
     const user = await User.findByPk(token.userId, {
@@ -349,9 +342,7 @@ const refreshToken = async (req, res) => {
 
       await t.rollback();
 
-      return res.status(401).json({
-        meta: { code: 401, message: "Invalid refresh token" },
-      });
+      return sendError(res, "Invalid refresh token", 401);
     }
 
     const accessToken = generateAccessToken(user);
