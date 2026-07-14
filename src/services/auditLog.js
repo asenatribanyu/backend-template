@@ -22,7 +22,7 @@ function getChangedFields(before, after) {
 
     return changed;
   } catch (error) {
-    throw new Error("Error comparing before and after data for audit log:", error);
+    throw new Error("Error comparing before and after data for audit log", { cause: error });
   }
 }
 
@@ -38,7 +38,7 @@ function pickFields(obj, fields) {
 
     return result;
   } catch (error) {
-    throw new Error("Error picking fields for audit log:", error);
+    throw new Error("Error picking fields for audit log", { cause: error });
   }
 }
 
@@ -65,7 +65,7 @@ function buildMessage({ type, entityType, changedFields, action }) {
 
     return action;
   } catch (error) {
-    throw new Error("Error building audit log message:", error);
+    throw new Error("Error building audit log message", { cause: error });
   }
 }
 

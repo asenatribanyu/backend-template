@@ -47,7 +47,7 @@ app.use(
 app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
-app.set("trust proxy", true);
+app.set("trust proxy", 1);
 
 setupBullBoard(app, {
   authMiddleware,
@@ -57,12 +57,12 @@ setupBullBoard(app, {
 app.use("/storage/public", express.static(path.resolve("storage/public")));
 app.use("/api", route);
 
-app.use(errorHandler);
-
 app.use((req, res) => {
   logger.warn(`404 Not Found: ${req.originalUrl}`);
   return sendError(res, "Not Found: The requested endpoint does not exist", 404);
 });
+
+app.use(errorHandler);
 
 const startServer = async () => {
   try {
@@ -110,5 +110,14 @@ const startServer = async () => {
     logger.error("Failed to start server:", { error: err });
   }
 };
+
+process.on("unhandledRejection", (reason, promise) => {
+  logger.error("Unhandled Rejection at:", { promise, reason });
+});
+
+process.on("uncaughtException", (error) => {
+  logger.error("Uncaught Exception:", { error });
+  process.exit(1);
+});
 
 startServer();
