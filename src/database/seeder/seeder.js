@@ -4,6 +4,7 @@ import { v7 as uuidv7 } from "uuid";
 import bcrypt from "bcrypt";
 import { createRequire } from "module";
 import { createLogger } from "../../utils/logger.js";
+import { BCRYPT_SALT_ROUNDS } from "../../config/constants.js";
 
 const logger = createLogger("Seeder");
 
@@ -78,7 +79,7 @@ const seed = async () => {
     // 4. Seed admin user
     logger.info("📦 Seeding admin user...");
 
-    const hashedPassword = await bcrypt.hash("admin123", 10);
+    const hashedPassword = await bcrypt.hash("admin123", BCRYPT_SALT_ROUNDS);
 
     const [adminUser] = await db.models.User.findOrCreate({
       where: { username: "admin" },

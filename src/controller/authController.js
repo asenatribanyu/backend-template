@@ -3,6 +3,7 @@ const { db, User, Role, Profile, AuditLog, RefreshToken, PasswordResetToken } = 
 import { createLogger } from "../utils/logger.js";
 const logger = createLogger("AuthController");
 import bcrypt from "bcrypt";
+import { BCRYPT_SALT_ROUNDS } from "../config/constants.js";
 import { buildAuditLog } from "../services/auditLog.js";
 import { Op } from "sequelize";
 import config from "../config/config.js";
@@ -46,7 +47,7 @@ const register = async (req, res) => {
       return sendError(res, "User role not found", 404);
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
 
     const newUser = await User.create(
       {
@@ -520,7 +521,7 @@ const resetPassword = async (req, res) => {
       return sendError(res, "Token expired", 400);
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
 
     await user.update({
       password: hashedPassword,

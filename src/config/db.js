@@ -1,7 +1,3 @@
-import dotenv from "dotenv";
-
-dotenv.config();
-
 export default {
   host: process.env.DB_HOST,
   port: process.env.DB_PORT,
