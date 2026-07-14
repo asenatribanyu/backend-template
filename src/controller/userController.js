@@ -7,6 +7,7 @@ import { buildAuditLog } from "../services/auditLog.js";
 import path from "path";
 import fs from "fs";
 import { sendSuccess, sendError } from "../utils/response.js";
+import { paginate, getPaginationParams } from "../utils/pagination.js";
 
 const show = async (req, res) => {
   try {
@@ -190,4 +191,121 @@ const updateAvatar = async (req, res) => {
   }
 };
 
-export { show, update, updateAvatar };
+const getAll = async (req, res) => {
+  try {
+    const paginationParams = getPaginationParams(req.query);
+
+    const { data, pagination } = await paginate(User, {
+      ...paginationParams,
+      sortBy: paginationParams.sortBy || "createdAt",
+      order: paginationParams.order || "desc",
+      attributes: { exclude: ["password"] },
+      include: [
+        { model: Role, as: "Role", attributes: ["id", "name"] },
+        { model: Profile, as: "Profile" },
+      ],
+    });
+
+    return sendSuccess(res, data, "Success", 200, pagination);
+  } catch (error) {
+    logger.error("Failed to list users", { error });
+    return sendError(res, "Internal Server Error", 500, error);
+  }
+};
+
+const updateRole = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { roleId } = req.body;
+
+    const user = await User.findByPk(id);
+    if (!user) return sendError(res, "User not found", 404);
+
+    const role = await Role.findByPk(roleId);
+    if (!role) return sendError(res, "Role not found", 404);
+
+    const before = user.toJSON();
+    await user.update({ roleId });
+
+    await AuditLog.create(
+      buildAuditLog({
+        type: "UPDATE",
+        actor: { id: req.user.id, type: "USER" },
+        action: "UPDATE_USER_ROLE",
+        entityType: "User",
+        entityId: user.id,
+        before,
+        after: user.toJSON(),
+        req,
+      }),
+    );
+
+    return sendSuccess(res, null, "User role updated successfully", 200);
+  } catch (error) {
+    logger.error("Failed to update user role", { error });
+    return sendError(res, "Internal Server Error", 500, error);
+  }
+};
+
+const updateStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isBlocked } = req.body;
+
+    const user = await User.findByPk(id);
+    if (!user) return sendError(res, "User not found", 404);
+
+    const before = user.toJSON();
+    await user.update({ isBlocked });
+
+    await AuditLog.create(
+      buildAuditLog({
+        type: "UPDATE",
+        actor: { id: req.user.id, type: "USER" },
+        action: isBlocked ? "BLOCK_USER" : "UNBLOCK_USER",
+        entityType: "User",
+        entityId: user.id,
+        before,
+        after: user.toJSON(),
+        req,
+      }),
+    );
+
+    return sendSuccess(res, null, `User ${isBlocked ? "blocked" : "unblocked"} successfully`, 200);
+  } catch (error) {
+    logger.error("Failed to update user status", { error });
+    return sendError(res, "Internal Server Error", 500, error);
+  }
+};
+
+const remove = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findByPk(id);
+    if (!user) return sendError(res, "User not found", 404);
+
+    const before = user.toJSON();
+    await user.destroy();
+
+    await AuditLog.create(
+      buildAuditLog({
+        type: "DELETE",
+        actor: { id: req.user.id, type: "USER" },
+        action: "DELETE_USER",
+        entityType: "User",
+        entityId: user.id,
+        before,
+        after: null,
+        req,
+      }),
+    );
+
+    return sendSuccess(res, null, "User deleted successfully", 200);
+  } catch (error) {
+    logger.error("Failed to delete user", { error });
+    return sendError(res, "Internal Server Error", 500, error);
+  }
+};
+
+export { show, update, updateAvatar, getAll, updateRole, updateStatus, remove };

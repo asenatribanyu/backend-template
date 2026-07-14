@@ -3,6 +3,7 @@ import authRouter from "./authRouter.js";
 import userRouter from "./userRouter.js";
 import roleRouter from "./roleRouter.js";
 import permissionRouter from "./permissionRouter.js";
+import auditLogRouter from "./auditLogRouter.js";
 import db from "../database/database.js";
 import { redis } from "../libs/redis.js";
 
@@ -45,5 +46,7 @@ router.use("/auth", authRouter);
 router.use("/me", userRouter);
 router.use("/roles", roleRouter);
 router.use("/permissions", permissionRouter);
+router.use("/users", userRouter); // Additional route pointing to userRouter for admin
+router.use("/audit-logs", auditLogRouter);
 
 export default router;

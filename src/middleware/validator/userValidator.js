@@ -20,3 +20,15 @@ export const updateUserSchema = validate(
     }),
   }),
 );
+
+export const updateRoleSchema = validate(
+  Joi.object({
+    roleId: Joi.number().required(),
+  }),
+);
+
+export const updateStatusSchema = validate(
+  Joi.object({
+    isBlocked: Joi.boolean().required(),
+  }),
+);
