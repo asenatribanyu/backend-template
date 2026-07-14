@@ -1,5 +1,5 @@
 import models from "../model/index.js";
-const { db, User, Role, Profile, AuditLog, RefreshToken, PasswordResetToken } = models;
+const { db, User, Role, Profile, AuditLog, RefreshToken, PasswordResetToken, EmailVerificationToken } = models;
 import { createLogger } from "../utils/logger.js";
 const logger = createLogger("AuthController");
 import bcrypt from "bcrypt";
@@ -80,9 +80,36 @@ const register = async (req, res) => {
     });
 
     await AuditLog.create(auditLog, { transaction: t });
+
+    // Generate email verification token
+    const verifyToken = crypto.randomBytes(32).toString("hex");
+    const hashedVerifyToken = hashToken(verifyToken);
+
+    await EmailVerificationToken.create(
+      {
+        userId: newUser.id,
+        tokenHash: hashedVerifyToken,
+        expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24), // 24 hours
+      },
+      { transaction: t },
+    );
+
     await t.commit();
 
-    return sendSuccess(res, null, "User registered successfully", 201);
+    // Send verification email (after commit — non-blocking)
+    const verifyLink = `${config.app.frontendUrl}/verify-email?token=${verifyToken}&email=${encodeURIComponent(email.toLowerCase())}`;
+
+    await emailQueue.add("verify-email", {
+      to: email.toLowerCase(),
+      subject: "Verify Your Account",
+      template: "verify-account",
+      data: {
+        verifyLink,
+        userName: username,
+      },
+    });
+
+    return sendSuccess(res, null, "User registered successfully. Please check your email to verify your account.", 201);
   } catch (error) {
     await t.rollback();
     logger.error("Registration failed:", { error });
@@ -544,4 +571,102 @@ const resetPassword = async (req, res) => {
   }
 };
 
-export { register, login, logout, refreshToken, forgotPassword, resetPassword };
+const verifyEmail = async (req, res) => {
+  try {
+    const { token, email } = req.body;
+
+    const user = await User.findOne({ where: { email: email.toLowerCase() } });
+
+    if (!user) {
+      return sendError(res, "Invalid verification token", 400);
+    }
+
+    if (user.isVerified) {
+      return sendSuccess(res, null, "Account is already verified", 200);
+    }
+
+    const hashedToken = hashToken(token);
+
+    const verificationToken = await EmailVerificationToken.findOne({
+      where: {
+        userId: user.id,
+        tokenHash: hashedToken,
+      },
+    });
+
+    if (!verificationToken) {
+      return sendError(res, "Invalid verification token", 400);
+    }
+
+    if (verificationToken.expiresAt < new Date()) {
+      await verificationToken.destroy();
+      return sendError(res, "Verification token expired. Please request a new one.", 400);
+    }
+
+    await user.update({
+      isVerified: true,
+      isVerifiedAt: new Date(),
+    });
+
+    await verificationToken.destroy();
+
+    await AuditLog.create(
+      buildAuditLog({
+        type: "EVENT",
+        actor: { id: user.id, type: "USER" },
+        action: "EMAIL_VERIFIED",
+        entityType: "Auth",
+        entityId: user.id,
+        metadata: { email: user.email },
+        req,
+      }),
+    );
+
+    return sendSuccess(res, null, "Email verified successfully", 200);
+  } catch (error) {
+    logger.error("Email verification failed:", { error });
+    return sendError(res, "Internal Server Error", 500, error);
+  }
+};
+
+const resendVerification = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    const user = await User.findOne({ where: { email: email.toLowerCase() } });
+
+    if (!user || user.isVerified) {
+      return sendSuccess(res, null, "If the email exists and is not verified, a verification link has been sent.", 200);
+    }
+
+    await EmailVerificationToken.destroy({ where: { userId: user.id } });
+
+    const verifyToken = crypto.randomBytes(32).toString("hex");
+    const hashedToken = hashToken(verifyToken);
+
+    await EmailVerificationToken.create({
+      userId: user.id,
+      tokenHash: hashedToken,
+      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24), // 24 hours
+    });
+
+    const verifyLink = `${config.app.frontendUrl}/verify-email?token=${verifyToken}&email=${encodeURIComponent(email.toLowerCase())}`;
+
+    await emailQueue.add("verify-email", {
+      to: user.email,
+      subject: "Verify Your Account",
+      template: "verify-account",
+      data: {
+        verifyLink,
+        userName: user.username,
+      },
+    });
+
+    return sendSuccess(res, null, "If the email exists and is not verified, a verification link has been sent.", 200);
+  } catch (error) {
+    logger.error("Resend verification failed:", { error });
+    return sendError(res, "Internal Server Error", 500, error);
+  }
+};
+
+export { register, login, logout, refreshToken, forgotPassword, resetPassword, verifyEmail, resendVerification };

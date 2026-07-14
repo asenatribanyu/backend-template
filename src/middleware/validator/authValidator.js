@@ -37,3 +37,15 @@ export const resetPasswordSchema = validate(
     password: Joi.string().min(6).required(),
   }),
 );
+export const verifyEmailSchema = validate(
+  Joi.object({
+    token: Joi.string().required(),
+    email: Joi.string().email().required(),
+  }),
+);
+
+export const resendVerificationSchema = validate(
+  Joi.object({
+    email: Joi.string().email().required(),
+  }),
+);
