@@ -1,219 +1,56 @@
-import models from "../model/index.js";
-const { db, User, Role, AuditLog, Profile } = models;
 import { createLogger } from "../utils/logger.js";
 const logger = createLogger("UserController");
-import bcrypt from "bcrypt";
-import { buildAuditLog } from "../services/auditLog.js";
-import { BCRYPT_SALT_ROUNDS } from "../config/constants.js";
-import { invalidateUserPermissionCache } from "../middleware/authMiddleware.js";
-import path from "path";
-import fs from "fs";
 import { sendSuccess, sendError } from "../utils/response.js";
-import { paginate, getPaginationParams } from "../utils/pagination.js";
+import { userService } from "../services/userService.js";
 
 const show = async (req, res) => {
   try {
-    const userId = req.user.id;
-    const user = await User.findOne({
-      where: { id: userId },
-      include: [
-        {
-          model: Profile,
-          as: "Profile",
-        },
-        {
-          model: Role,
-          as: "Role",
-          attributes: ["name", "scope"],
-        },
-      ],
-      attributes: { exclude: ["password"] },
-    });
-    if (!user) {
-      return sendError(res, "User not found", 404);
-    }
+    const user = await userService.getUserById(req.user.id);
     return sendSuccess(res, user, "User found", 200);
   } catch (error) {
+    if (error.statusCode) {
+      return sendError(res, error.message, error.statusCode);
+    }
     logger.error("Failed to show user", { error });
     return sendError(res, "Internal Server Error", 500, error);
   }
 };
 
 const update = async (req, res) => {
-  const t = await db.transaction();
-
   try {
-    const userId = req.user.id;
-
-    const { username, email, phone, password, profile } = req.body;
-
-    const user = await User.findByPk(userId, {
-      include: "Profile",
-      transaction: t,
-    });
-
-    if (!user) {
-      await t.rollback();
-      return sendError(res, "User not found", 404);
-    }
-
-    const before = user.toJSON();
-
-    const userData = {};
-
-    if (username !== undefined) userData.username = username.toLowerCase();
-    if (email !== undefined) userData.email = email.toLowerCase();
-    if (phone !== undefined) userData.phone = phone;
-
-    if (password) {
-      userData.password = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
-    }
-
-    if (Object.keys(userData).length > 0) {
-      await user.update(userData, { transaction: t });
-    }
-
-    if (profile) {
-      if (user.Profile) {
-        await user.Profile.update(profile, { transaction: t });
-      } else {
-        await Profile.create(
-          {
-            ...profile,
-            userId,
-          },
-          { transaction: t },
-        );
-      }
-    }
-
-    const after = await User.findByPk(userId, {
-      include: "Profile",
-      transaction: t,
-    });
-
-    const auditLog = buildAuditLog({
-      type: "UPDATE",
-      actor: {
-        id: userId,
-        type: "USER",
-      },
-      action: "UPDATE_ME",
-      entityType: "User",
-      entityId: userId,
-      before,
-      after: after.toJSON(),
-      req,
-    });
-
-    await AuditLog.create(auditLog, { transaction: t });
-
-    await t.commit();
-
-    return sendSuccess(res, after, "Updated successfully", 200);
+    const result = await userService.updateUser(req.user.id, req.body, req);
+    return sendSuccess(res, result, "Updated successfully", 200);
   } catch (error) {
-    try {
-      await t.rollback();
-    } catch {
-      /* ignore */
+    if (error.statusCode) {
+      return sendError(res, error.message, error.statusCode);
     }
-
     logger.error("Failed to update user", { error });
-
     return sendError(res, "Internal Server Error", 500, error);
   }
 };
 
 const updateAvatar = async (req, res) => {
   try {
-    const userId = req.user.id;
-
-    if (!req.file) {
-      return sendError(res, "Avatar file is required", 400);
-    }
-
-    const avatarUrl = `storage/avatar/${req.file.filename}`;
-
-    let profile = await Profile.findOne({ where: { userId } });
-
-    const oldAvatarUrl = profile?.avatarUrl || null;
-    const before = profile ? profile.toJSON() : null;
-
-    if (!profile) {
-      profile = await Profile.create({
-        userId,
-        firstName: "Unknown",
-        lastName: "User",
-        avatarUrl,
-      });
-    } else {
-      await profile.update({ avatarUrl });
-    }
-
-    if (oldAvatarUrl) {
-      const oldPath = path.join("storage/avatar", path.basename(oldAvatarUrl));
-
-      fs.unlink(oldPath, (err) => {
-        if (err) {
-          logger.warn("Failed to delete old avatar", { error: err });
-        }
-      });
-    }
-
-    const after = profile.toJSON();
-
-    const auditLog = buildAuditLog({
-      type: before ? "UPDATE" : "CREATE",
-      actor: {
-        id: userId,
-        type: "USER",
-      },
-      action: "UPLOAD_AVATAR",
-      entityType: "Profile",
-      entityId: profile.id,
-      before,
-      after,
-      metadata: {
-        updatedField: "avatarUrl",
-        fileName: req.file.filename,
-        fileSize: req.file.size,
-        mimeType: req.file.mimetype,
-      },
-      req,
-    });
-
-    await AuditLog.create(auditLog);
-
-    return sendSuccess(
-      res,
-      { avatarUrl: `${req.protocol}://${req.get("host")}/${avatarUrl}` },
-      "Avatar updated successfully",
-      200,
-    );
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+    const result = await userService.updateAvatar(req.user.id, req.file, baseUrl, req);
+    return sendSuccess(res, result, "Avatar updated successfully", 200);
   } catch (error) {
+    if (error.statusCode) {
+      return sendError(res, error.message, error.statusCode);
+    }
     logger.error("Failed to upload avatar", { error });
-
     return sendError(res, "Internal Server Error", 500, error);
   }
 };
 
 const getAll = async (req, res) => {
   try {
-    const paginationParams = getPaginationParams(req.query);
-
-    const { data, pagination } = await paginate(User, {
-      ...paginationParams,
-      sortBy: paginationParams.sortBy || "createdAt",
-      order: paginationParams.order || "desc",
-      attributes: { exclude: ["password"] },
-      include: [
-        { model: Role, as: "Role", attributes: ["id", "name"] },
-        { model: Profile, as: "Profile" },
-      ],
-    });
-
+    const { data, pagination } = await userService.getAllUsers(req.query);
     return sendSuccess(res, data, "Success", 200, pagination);
   } catch (error) {
+    if (error.statusCode) {
+      return sendError(res, error.message, error.statusCode);
+    }
     logger.error("Failed to list users", { error });
     return sendError(res, "Internal Server Error", 500, error);
   }
@@ -221,35 +58,12 @@ const getAll = async (req, res) => {
 
 const updateRole = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { roleId } = req.body;
-
-    const user = await User.findByPk(id);
-    if (!user) return sendError(res, "User not found", 404);
-
-    const role = await Role.findByPk(roleId);
-    if (!role) return sendError(res, "Role not found", 404);
-
-    const before = user.toJSON();
-    await user.update({ roleId });
-
-    await AuditLog.create(
-      buildAuditLog({
-        type: "UPDATE",
-        actor: { id: req.user.id, type: "USER" },
-        action: "UPDATE_USER_ROLE",
-        entityType: "User",
-        entityId: user.id,
-        before,
-        after: user.toJSON(),
-        req,
-      }),
-    );
-
-    await invalidateUserPermissionCache(user.id);
-
+    await userService.updateRole(req.params.id, req.user.id, req.body.roleId, req);
     return sendSuccess(res, null, "User role updated successfully", 200);
   } catch (error) {
+    if (error.statusCode) {
+      return sendError(res, error.message, error.statusCode);
+    }
     logger.error("Failed to update user role", { error });
     return sendError(res, "Internal Server Error", 500, error);
   }
@@ -257,32 +71,12 @@ const updateRole = async (req, res) => {
 
 const updateStatus = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { isBlocked } = req.body;
-
-    const user = await User.findByPk(id);
-    if (!user) return sendError(res, "User not found", 404);
-
-    const before = user.toJSON();
-    await user.update({ isBlocked });
-
-    await AuditLog.create(
-      buildAuditLog({
-        type: "UPDATE",
-        actor: { id: req.user.id, type: "USER" },
-        action: isBlocked ? "BLOCK_USER" : "UNBLOCK_USER",
-        entityType: "User",
-        entityId: user.id,
-        before,
-        after: user.toJSON(),
-        req,
-      }),
-    );
-
-    await invalidateUserPermissionCache(user.id);
-
-    return sendSuccess(res, null, `User ${isBlocked ? "blocked" : "unblocked"} successfully`, 200);
+    await userService.updateStatus(req.params.id, req.user.id, req.body.isBlocked, req);
+    return sendSuccess(res, null, `User ${req.body.isBlocked ? "blocked" : "unblocked"} successfully`, 200);
   } catch (error) {
+    if (error.statusCode) {
+      return sendError(res, error.message, error.statusCode);
+    }
     logger.error("Failed to update user status", { error });
     return sendError(res, "Internal Server Error", 500, error);
   }
@@ -290,31 +84,12 @@ const updateStatus = async (req, res) => {
 
 const remove = async (req, res) => {
   try {
-    const { id } = req.params;
-
-    const user = await User.findByPk(id);
-    if (!user) return sendError(res, "User not found", 404);
-
-    const before = user.toJSON();
-    await user.destroy();
-
-    await AuditLog.create(
-      buildAuditLog({
-        type: "DELETE",
-        actor: { id: req.user.id, type: "USER" },
-        action: "DELETE_USER",
-        entityType: "User",
-        entityId: user.id,
-        before,
-        after: null,
-        req,
-      }),
-    );
-
-    await invalidateUserPermissionCache(user.id);
-
+    await userService.removeUser(req.params.id, req.user.id, req);
     return sendSuccess(res, null, "User deleted successfully", 200);
   } catch (error) {
+    if (error.statusCode) {
+      return sendError(res, error.message, error.statusCode);
+    }
     logger.error("Failed to delete user", { error });
     return sendError(res, "Internal Server Error", 500, error);
   }
