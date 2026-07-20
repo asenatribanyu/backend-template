@@ -52,7 +52,6 @@ app.set("trust proxy", 1);
 setupBullBoard(app);
 
 app.use("/storage/public", express.static(path.resolve("storage/public")));
-app.use("/storage/avatar", express.static(path.resolve("storage/avatar")));
 app.use("/api", route);
 
 app.use(errorHandler);

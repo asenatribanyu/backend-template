@@ -98,7 +98,7 @@ const updateAvatar = async (userId, file, baseUrl, req) => {
     throw new AppError("Avatar file is required", 400);
   }
 
-  const avatarUrl = `storage/avatar/${file.filename}`;
+  const avatarUrl = `storage/public/avatar/${file.filename}`;
   let profile = await Profile.findOne({ where: { userId } });
 
   const oldAvatarUrl = profile?.avatarUrl || null;
@@ -116,7 +116,7 @@ const updateAvatar = async (userId, file, baseUrl, req) => {
   }
 
   if (oldAvatarUrl) {
-    const oldPath = path.join("storage/avatar", path.basename(oldAvatarUrl));
+    const oldPath = path.join("storage/public/avatar", path.basename(oldAvatarUrl));
     fs.unlink(oldPath, (err) => {
       if (err) logger.warn("Failed to delete old avatar", { error: err });
     });

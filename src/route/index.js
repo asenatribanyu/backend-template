@@ -30,7 +30,9 @@ router.get("/health", async (req, res) => {
         database: "connected",
         redis: "connected",
         uptime: process.uptime(),
-        timestamp: Date.now(),
+        timestamp: new Date().toLocaleString("en-US", {
+          timeZone: "Asia/Jakarta",
+        }),
       },
     });
   } catch (error) {

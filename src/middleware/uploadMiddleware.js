@@ -6,7 +6,7 @@ import sharp from "sharp";
 import { nanoid } from "nanoid";
 
 export const createUploader = ({ folder, allowedMimeTypes = [], maxSize = 5 * 1024 * 1024 }) => {
-  const storagePath = `storage/${folder}`;
+  const storagePath = `storage/public/${folder}`;
 
   if (!fs.existsSync(storagePath)) {
     fs.mkdirSync(storagePath, { recursive: true });
@@ -54,13 +54,13 @@ export const processUploadedFiles = (folder) => {
 
         const filename = `${Date.now()}-${nanoid(8)}-${file.fieldname}`;
 
-        const filepath = path.join(`storage/${folder}`, filename);
+        const filepath = path.join(`storage/public/${folder}`, filename);
 
         let finalFilename = filename;
 
         if (isImage) {
           finalFilename = `${filename}.webp`;
-          const finalFilepath = path.join(`storage/${folder}`, finalFilename);
+          const finalFilepath = path.join(`storage/public/${folder}`, finalFilename);
 
           await sharp(file.buffer).webp({ quality: 80 }).toFile(finalFilepath);
 
